@@ -1,0 +1,13 @@
+{
+    "authorization": {
+        "id": "",
+        "auth_token": "",
+        "client_id": ""
+    },
+    "somestreamername": [
+        "https://discord.com/api/webhooks/453454353453454354/gfrlhgh7HuirSDFKLGBDFKLgfbGJFDhjgFglFglDFBghDFglFgLfghASdeuFeFUEFuFE"
+    ],
+    "someotherstreamername": [
+        "https://discord.com/api/webhooks/540385093485034545/sklfnbil34untliu4niULENFLIUWCFHJBSEfb378fHb384BBHDjhjhdfjskagvbhrfhh"
+    ]
+}
