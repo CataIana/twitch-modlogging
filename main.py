@@ -33,6 +33,12 @@ class PubSubLogging:
         fh.setFormatter(formatter)
         self.logging.addHandler(fh)
 
+        #Console logging
+        chandler = logging.StreamHandler(sys.stdout)
+        chandler.setLevel(logging.DEBUG)
+        chandler.setFormatter(formatter)
+        self.logging.addHandler(chandler)
+
         try:
             with open("settings.json") as f:
                 channels = json.load(f)
