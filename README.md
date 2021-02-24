@@ -8,6 +8,10 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 
 * Clone the repo `git clone https://github.com/CataIana/twitch-modlogging.git`
 
+* Make sure you have a recent python 3 installation. E.g Python 3.7 or 3.8
+
+* Install the required dependencies `pip install --upgrade -r requirements.txt`
+
 * Rename `examplesettings.json` to `settings.json`
 
 * Go to the [twitch developer console](https://dev.twitch.tv/console) and click Register Your Application
@@ -24,6 +28,6 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 
 * Now you can configure which streamer mod actions you want to listen for. Each streamer allows a list of webhooks if you want to send them to multiple places. 
 
-* Now you can start up the bot and it will listen and post mod a
+* Now you can start up the bot and it will listen and post mod actions in your discord servers.
 
 **If there are a large number of mod actions in a small time frame (a nuke happens or similar), the webhook will be throttled and may not display all moderation actions.**
