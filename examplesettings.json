@@ -5,10 +5,10 @@
         "client_id": ""
     },
     "somestreamername": [
-        "https://discord.com/api/webhooks/453454353453454354/gfrlhgh7HuirSDFKLGBDFKLgfbGJFDhjgFglFglDFBghDFglFgLfghASdeuFeFUEFuFE",
-        "https://discord.com/api/webhooks/453454353453454354/llkfjsdngkjng4g48g9nunse89rvn89w8csn88s898f389f89s9fj83j89f8jwvj88jf"
+        "https://discord.com/api/webhooks/whatever",
+        "https://discord.com/api/webhooks/whatever"
     ],
     "someotherstreamername": [
-        "https://discord.com/api/webhooks/540385093485034545/sklfnbil34untliu4niULENFLIUWCFHJBSEfb378fHb384BBHDjhjhdfjskagvbhrfhh"
+        "https://discord.com/api/whatever"
     ]
 }
