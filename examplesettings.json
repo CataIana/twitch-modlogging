@@ -9,6 +9,6 @@
         "https://discord.com/api/webhooks/whatever"
     ],
     "someotherstreamername": [
-        "https://discord.com/api/whatever"
+        "https://discord.com/api/webhooks/whatever"
     ]
 }
