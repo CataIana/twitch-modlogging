@@ -16,7 +16,7 @@ import logging
 class PubSubLogging:
     def __init__(self):
         self.logging = logging.getLogger("Twitch Pubsub Logging")
-        self.logging.setLevel(logging.INFO)
+        self.logging.setLevel(logging.DEBUG)
         formatter = logging.Formatter("%(asctime)s %(levelname)s [%(module)s %(funcName)s %(lineno)d]: %(message)s", "%Y-%m-%d %I:%M:%S%p")
 
         #File logging
@@ -113,6 +113,7 @@ class PubSubLogging:
     async def messagehandler(self, raw_message):
         try:
             json_message = json.loads(str(raw_message))
+            self.logging.debug(json.dumps(json_message, indent=4))
             if json_message["type"] == "RESPONSE":
                 if json_message["error"] != "":
                     self.logging.error(f"Error while subscribing to topics: {json_message['error']}")
@@ -292,6 +293,8 @@ class PubSubLogging:
                         embed.add_embed_field(
                             name="Moderator", value=f"`{info['created_by']}`", inline=True)
 
+                    elif info["moderation_action"] == "mod":
+                        return
                     
                     else:
                         if info["args"] == None:
@@ -394,7 +397,7 @@ class PubSubLogging:
                     channel_name = streamer["username"]
                     channel_display_name = streamer["display_name"]
                     embed = DiscordEmbed(
-                        title=f"Mod {message['type'].replace('_', ' ')} action",
+                        title=f"{message['type'].replace('_', ' ').title()} action",
                         description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{message['data']['target_user_login']})",
                         color=0x00FF00
                     )
@@ -413,6 +416,37 @@ class PubSubLogging:
                         self.logging.info(f"Sent webhook, response:  {', '.join([str(response.status_code) for response in response])}")
                     elif type(response).__name__ == "str":
                         self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
+
+                elif message["type"] == "approve_unban_request" or message["type"] == "deny_unban_request":
+                    channel_name = streamer["username"]
+                    channel_display_name = streamer["display_name"]
+                    if message["type"] == "approve_unban_request":
+                        color = 0x00FF00
+                    else:
+                        color = 0xFF0000
+                    embed = DiscordEmbed(
+                        title=f"Mod {message['type'].replace('_', ' ').title()} action",
+                        description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{message['data']['target_user_login']})",
+                        color=color
+                    )
+                    embed.add_embed_field(
+                        name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
+                    embed.add_embed_field(
+                        name="Moderator", value=f"`{message['data']['created_by_login']}`", inline=True)
+                    embed.add_embed_field(
+                        name="Flagged Account", value=f"`{message['data']['target_user_login']}`", inline=True)
+
+                    embed.set_footer(text="Mew", icon_url=streamer["icon"])
+                    embed.set_timestamp()
+                    webhook.add_embed(embed)
+                    response = webhook.execute()
+                    if type(response).__name__ == "list":
+                        self.logging.info(f"Sent webhook, response:  {', '.join([str(response.status_code) for response in response])}")
+                    elif type(response).__name__ == "str":
+                        self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
+                    
+                else:
+                    raise TypeError("Unkown Type")
         except Exception as e:
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(format_tb(e.__traceback__)) + f"{type(e).__name__}: {e}"
             self.logging.error(formatted_exception)
