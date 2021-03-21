@@ -39,6 +39,6 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 * The output should look like this:
 ![script running](https://i.catalana.dev/modlogging/running.png)
 
-* I personally run this on linux using a systemd service. I highly recommend following a similar approach. For setting up such approach, check out (this)[https://tecadmin.net/setup-autorun-python-script-using-systemd/]
+* I personally run this on linux using a systemd service. I highly recommend following a similar approach. For setting up such approach, check out [this](https://tecadmin.net/setup-autorun-python-script-using-systemd/)
 
 **If there are a large number of mod actions in a small time frame (a nuke happens or similar), the webhook will be throttled and may not display all moderation actions.**
