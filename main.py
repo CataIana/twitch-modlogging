@@ -116,9 +116,9 @@ class PubSubLogging:
                 self.logging.debug("Pong!")
                 self.last_ping = datetime.now()
             elif json_message["type"] == "RECONNECT":
-                self.logging.warn("Reconnecting...")
+                self.logging.warning("Reconnecting...")
                 await asyncio.sleep(5)
-                self.connection.close()
+                await self.connection.close()
             elif json_message["type"] == "MESSAGE":
                 message = json.loads(json_message["data"]["message"])
                 streamer_id = json_message["data"]["topic"].split(".")[-1]
@@ -349,9 +349,16 @@ class PubSubLogging:
             webhook.add_embed(embed)
             response = webhook.execute()
             if type(response).__name__ == "list":
-                self.logging.info(f"Sent webhook, response:  {', '.join([str(response.status_code) for response in response])}")
+                response_list = [str(response.status_code) for response in response]
+                if all([True for response in response_list if response == "200"]):
+                    self.logging.debug(f"Sent webhook, response:  {', '.join(response_list)}")
+                else:
+                    self.logging.warning(f"Sent webhook, response:  {', '.join(response_list)}")
             elif type(response).__name__ == "str":
-                self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
+                if str(response.status_code) == "200":
+                    self.logging.debug(f"Sent webhook, response:  {str(response.status_code)}")
+                else:
+                    self.logging.warning(f"Sent webhook, response:  {str(response.status_code)}")
 
 
 p = PubSubLogging()
