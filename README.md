@@ -10,7 +10,7 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 
 * Make sure you have a recent python 3 installation. E.g Python 3.7 or 3.8
 
-* Install the required dependencies `pip install --upgrade -r requirements.txt`
+* Install the required dependencies `sudo pip3 install --upgrade -r requirements.txt`
 
 * Rename `examplesettings.json` to `settings.json`
 
