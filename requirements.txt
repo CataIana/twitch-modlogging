@@ -1,3 +1,4 @@
 websockets
 asyncio
 discord_webhook
+systemd

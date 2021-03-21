@@ -19,14 +19,6 @@ class PubSubLogging:
         self.logging.setLevel(logging.INFO)
         formatter = logging.Formatter("%(asctime)s %(levelname)s [%(module)s %(funcName)s %(lineno)d]: %(message)s", "%Y-%m-%d %I:%M:%S%p")
 
-        if sys.platform == "linux":
-            #Systemd logging
-            from systemd.journal import JournalHandler
-            jh = JournalHandler()
-            jh.setLevel(logging.DEBUG)
-            jh.setFormatter(formatter)
-            self.logging.addHandler(jh)
-
         #File logging
         fh = logging.FileHandler("log.log")
         fh.setLevel(logging.WARNING)
@@ -53,12 +45,15 @@ class PubSubLogging:
             del channels["authorization"]
         except KeyError:
             raise TypeError("Unable to fetch user ID and Authorization Token!")
-        self._streamers = {}
-        response = get(url=f"https://api.twitch.tv/kraken/users?login={','.join(channels.keys())}", headers={
+        try:
+            self._streamers = {}
+            response = get(url=f"https://api.twitch.tv/kraken/users?login={','.join(channels.keys())}", headers={
                        "Accept": "application/vnd.twitchtv.v5+json", "Client-ID": client_id})
-        json_obj = json.loads(response.content.decode())
-        for user in json_obj["users"]:
-            self._streamers[user['_id']] = {"username": user["name"], "display_name": user["display_name"], "icon": user["logo"], "webhook_urls": channels[user["name"]]}
+            json_obj = json.loads(response.content.decode())
+            for user in json_obj["users"]:
+                self._streamers[user['_id']] = {"username": user["name"], "display_name": user["display_name"], "icon": user["logo"], "webhook_urls": channels[user["name"]]}
+        except KeyError:
+            raise TypeError("Error during initialization. Check your client id and settings file!")
 
         self.logging.info(f"Listening for chat moderation actions for streamers {', '.join(channels.keys())}")
 
