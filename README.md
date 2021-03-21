@@ -33,7 +33,7 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 ![Getting auth token 1](https://i.catalana.dev/modlogging/getauthtoken1.png)
 ![Getting auth token 2](https://i.catalana.dev/modlogging/getauthtoken2.png)
 
-* Now you can configure which streamer mod actions you want to listen for. Each streamer allows a list of webhooks if you want to send them to multiple places. For more information on making webhooks, see (here)[https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks]
+* Now you can configure which streamer mod actions you want to listen for. Each streamer allows a list of webhooks if you want to send them to multiple places. For more information on making webhooks, see [here](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 
 * Now you can start up the bot and it will listen and post mod actions in your discord servers.
 * The output should look like this:
