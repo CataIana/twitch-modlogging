@@ -110,7 +110,7 @@ class PubSubLogging:
         oauth_nonce = nonce.hex
         return oauth_nonce
 
-    async def messagehandler(self, raw_message):
+    async def messagehandler(self, raw_message): #I really could handle this better... so many elseifs. PAIN
         try:
             json_message = json.loads(str(raw_message))
             self.logging.debug(json.dumps(json_message, indent=4))
@@ -294,7 +294,7 @@ class PubSubLogging:
                             name="Moderator", value=f"`{info['created_by']}`", inline=True)
 
                     elif info["moderation_action"] == "mod":
-                        return
+                        return #This action is sent as a duplicate. The message is sent when the websocket recieves the moderator_added type, seen below
                     
                     else:
                         if info["args"] == None:
@@ -421,13 +421,13 @@ class PubSubLogging:
                     channel_name = streamer["username"]
                     channel_display_name = streamer["display_name"]
                     if message["type"] == "approve_unban_request":
-                        color = 0x00FF00
+                        colour = 0x00FF00
                     else:
-                        color = 0xFF0000
+                        colour = 0xFF0000
                     embed = DiscordEmbed(
                         title=f"Mod {message['type'].replace('_', ' ').title()} action",
                         description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{message['data']['target_user_login']})",
-                        color=color
+                        color=colour
                     )
                     embed.add_embed_field(
                         name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
@@ -446,7 +446,7 @@ class PubSubLogging:
                         self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
                     
                 else:
-                    raise TypeError("Unkown Type")
+                    raise TypeError("Unknown Type")
         except Exception as e:
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(format_tb(e.__traceback__)) + f"{type(e).__name__}: {e}"
             self.logging.error(formatted_exception)
