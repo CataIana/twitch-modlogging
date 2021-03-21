@@ -58,7 +58,7 @@ class PubSubLogging:
         self.logging.info(f"Listening for chat moderation actions for streamers {', '.join(channels.keys())}")
 
         topics = [f"chat_moderator_actions.{uid}.{c_id}" for c_id in list(self._streamers.keys())]
-        self.subscribe_message = {"type": "LISTEN", "nonce": str(self.generate_nonce()), "data": {
+        self.subscribe_message = {"type": "LISTEN", "nonce": str(uuid.uuid1().hex), "data": {
             "topics": topics, "auth_token": auth_token}}
 
     def run(self):
@@ -105,11 +105,6 @@ class PubSubLogging:
                 self.logging.warning("Connection with server closed")
                 break
 
-    def generate_nonce(self):
-        nonce = uuid.uuid1()
-        oauth_nonce = nonce.hex
-        return oauth_nonce
-
     async def messagehandler(self, raw_message): #I really could handle this better... so many elseifs. PAIN
         try:
             json_message = json.loads(str(raw_message))
@@ -134,189 +129,86 @@ class PubSubLogging:
                     info = message["data"]
                     channel_name = streamer["username"]
                     channel_display_name = streamer["display_name"]
+                    mod_action = info["moderation_action"]
 
-                    if info["moderation_action"] == "slow":
+                    #Chat mod actions
+                    name_dict = {
+                        "slow": "Slow Chat Mode Enabled",
+                        "slowoff": "Slow Chat Mode Disabled",
+                        "r9kbeta": "Unique Chat Mode Enabled",
+                        "r9kbetaoff": "Unique Chat Mode Disabled",
+                        "clear": "Chat Cleared by Moderator",
+                        "emoteonly": "Emote Only Chat Mode Enabled",
+                        "emoteonlyoff": "Emote Only Chat Mode Disabled",
+                        "subscribers": "Subscriber Only Chat Mode Enabled",
+                        "subscribersoff": "Subscriber Only Chat Mode Disabled",
+                        "followers": "Follower Only Chat Mode Enabled",
+                        "followersoff": "Follower Only Chat Mode Disabled",
+                        "host": "Host Action",
+                        "unhost": "Unhost Action",
+                        "raid": "Raid Action",
+                        "unraid": "Unraid Action"
+                    }
+                    
+                    if mod_action in name_dict.keys():
                         embed = DiscordEmbed(
-                        title=f"Slow Chat Mode Enabled",
+                        title=name_dict[mod_action],
                         color=0xFFFF00
                         )
                         embed.add_embed_field(
                             name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
                         embed.add_embed_field(
                             name="Moderator", value=f"`{info['created_by']}`", inline=True)
+
+                    if mod_action == "slow":
                         embed.add_embed_field(
                             name="Slow Amount (seconds)", value=f"`{info['args'][0]}`", inline=True)
-                    elif info["moderation_action"] == "slowoff":
-                        embed = DiscordEmbed(
-                        title=f"Slow Chat Mode Disabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
 
-
-                    elif info["moderation_action"] == "r9kbeta":
-                        embed = DiscordEmbed(
-                        title=f"Unique Chat Mode Enabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-                    elif info["moderation_action"] == "r9kbetaoff":
-                        embed = DiscordEmbed(
-                        title=f"Unique Chat Mode Disabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-
-
-                    elif info["moderation_action"] == "clear":
-                        embed = DiscordEmbed(
-                        title=f"Chat Cleared by Moderator",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-
-
-                    elif info["moderation_action"] == "emoteonly":
-                        embed = DiscordEmbed(
-                        title=f"Emote Only Chat Mode Enabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-                    elif info["moderation_action"] == "emoteonlyoff":
-                        embed = DiscordEmbed(
-                        title=f"Emote Only Chat Mode Disabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-
-                    
-                    elif info["moderation_action"] == "subscribers":
-                        embed = DiscordEmbed(
-                        title=f"Subscriber Only Chat Mode Enabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-                    elif info["moderation_action"] == "subscribersoff":
-                        embed = DiscordEmbed(
-                        title=f"Subscriber Only Chat Mode Disabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-
-
-                    elif info["moderation_action"] == "followers":
-                        embed = DiscordEmbed(
-                        title=f"Follower Only Chat Mode Enabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
+                    elif mod_action == "followers":
                         embed.add_embed_field(
                             name="Time Needed to be Following (minutes)", value=f"`{info['args'][0]}`", inline=True)
-                    elif info["moderation_action"] == "followersoff":
-                        embed = DiscordEmbed(
-                        title=f"Follower Only Chat Mode Disabled",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-
                     
-                    elif info["moderation_action"] == "host":
-                        embed = DiscordEmbed(
-                        title=f"Host Action Performed",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
+                    elif mod_action == "host":
                         embed.add_embed_field(
                             name="Hosted Channel", value=f"[{info['args'][0]}](https://www.twitch.tv/{info['args'][0]})", inline=True)
-                    elif info["moderation_action"] == "unhost":
-                        embed = DiscordEmbed(
-                        title=f"Unhost Action Performed",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
 
-
-                    elif info["moderation_action"] == "raid":
-                        embed = DiscordEmbed(
-                        title=f"Raid Action Performed",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
+                    elif mod_action == "raid":
                         embed.add_embed_field(
                             name="Raided Channel", value=f"[{info['args'][0]}](https://www.twitch.tv/{info['args'][0]})", inline=True)
-                    elif info["moderation_action"] == "unraid":
-                        embed = DiscordEmbed(
-                        title=f"Unraid Action Performed",
-                        color=0xFFFF00
-                        )
-                        embed.add_embed_field(
-                            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
-                            name="Moderator", value=f"`{info['created_by']}`", inline=True)
-
-                    elif info["moderation_action"] == "mod":
-                        return #This action is sent as a duplicate. The message is sent when the websocket recieves the moderator_added type, seen below
                     
-                    else:
+                    #Otherwise switch to user mod actions
+                    if mod_action not in name_dict.keys():
+                        title = f"Mod {mod_action.replace('_', ' ').title()} Action"
+                        colour = 0xFF0000
+                        if mod_action == "mod":
+                            title = "Moderator Added Action"
+                            colour = 0x00FF00
+                        if mod_action == "unmod":
+                            title = "Moderator Removed Action"
                         if info["args"] == None:
                             embed = DiscordEmbed(
-                                title=f"Mod {info['moderation_action'].replace('_', ' ').title()} Action",
-                                color=0xFF0000
+                                title=title,
+                                color=colour
                             )
                         else:
                             embed = DiscordEmbed(
-                                title=f"Mod {info['moderation_action'].replace('_', ' ').title()} Action",
+                                title=title,
                                 description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{info['args'][0]})",
-                                color=0xFF0000
+                                color=colour
                             )
 
                         embed.add_embed_field(
                             name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        if info["created_by"] == "":
-                            embed.add_embed_field(
-                                name="Moderator", value=f"NONE", inline=True)
+                        if "created_by" in info.keys():
+                            if info["created_by"] == "":
+                                embed.add_embed_field(
+                                    name="Moderator", value=f"NONE", inline=True)
+                            else:
+                                embed.add_embed_field(
+                                    name="Moderator", value=f"`{info['created_by']}`", inline=True)
                         else:
                             embed.add_embed_field(
-                                name="Moderator", value=f"`{info['created_by']}`", inline=True)
+                                name="Moderator", value=f"NONE", inline=True)
                         try:
                             embed.add_embed_field(
                                 name="Flagged Account", value=f"`{info['args'][0]}`", inline=True)
@@ -324,7 +216,7 @@ class PubSubLogging:
                             pass
                         except TypeError:
                             pass
-                        if info['moderation_action'] == "timeout":
+                        if mod_action == "timeout":
                             if info['args'][2] == "":
                                 embed.add_embed_field(
                                     name="Flag Reason", value=f"`None Provided`", inline=False)
@@ -340,50 +232,57 @@ class PubSubLogging:
                             else:
                                 embed.add_embed_field(
                                     name="Message ID", value=f"`{info['msg_id']}`", inline=False)
-                        elif info['moderation_action'] == "untimeout":
+                        elif mod_action == "untimeout":
                             pass
-                        elif info['moderation_action'] == "ban":
+                        elif mod_action == "ban":
                             if info['args'][1] == "":
                                 embed.add_embed_field(
                                     name="Flag Reason", value=f"`None Provided`", inline=False)
                             else:
                                 embed.add_embed_field(
                                     name="Flag Reason", value=f"`{info['args'][1]}`", inline=False)
-                        elif info['moderation_action'] == "unban":
+                        elif mod_action == "unban":
                             pass
-                        elif info['moderation_action'] == "delete":
+                        elif mod_action == "delete":
                             embed.add_embed_field(
                                 name="Message", value=f"`{info['args'][1]}`", inline=False)
                             embed.add_embed_field(
                                 name="Message ID", value=f"`{info['args'][2]}`", inline=False)
-                        elif info["moderation_action"] == "automod_rejected":
+
+                        elif mod_action == "unmod":
+                            pass
+                        elif mod_action == "mod":
+                            pass
+
+                        #Automod stuff
+                        elif mod_action == "automod_rejected":
                             embed.add_embed_field(
                                 name="Message", value=f"`{info['args'][1]}`", inline=False)
                             embed.add_embed_field(
                                 name="Rejected Reason", value=f"`{info['args'][2]}`", inline=False)
                             embed.add_embed_field(
                                 name="Message ID", value=f"`{info['msg_id']}`", inline=False)
-                        elif info["moderation_action"] == "approved_automod_message":
+                        elif mod_action == "approved_automod_message":
                             embed.add_embed_field(
                                 name="Message ID", value=f"`{info['msg_id']}`", inline=False)
-                        elif info["moderation_action"] == "add_permitted_term":
+                        elif mod_action == "add_permitted_term":
                             embed.add_embed_field(
                                 name="Added by", value=f"`{info['created_by']}`", inline=False)
                             embed.add_embed_field(
                                 name="Value", value=f"`{info['args'][0]}`", inline=False)
-                        elif info["moderation_action"] == "add_blocked_term":
+                        elif mod_action == "add_blocked_term":
                             embed.add_embed_field(
                                 name="Added by", value=f"`{info['created_by']}`", inline=False)
                             embed.add_embed_field(
                                 name="Value", value=f"`{info['args'][0]}`", inline=False)
-                        elif info["moderation_action"] == "delete_permitted_term":
+                        elif mod_action == "delete_permitted_term":
                             embed.add_embed_field(
                                 name="Removed by", value=f"`{info['created_by']}`", inline=False)
                             embed.add_embed_field(
                                 name="Value", value=f"`{info['args'][0]}`", inline=False)
-                        else:
+                        else: #In case there's something new/unknown that happens
                             embed.add_embed_field(
-                                name="UNKNOWN ACTION", value=f"`{info['moderation_action']}`", inline=False)
+                                name="UNKNOWN ACTION", value=f"`{mod_action}`", inline=False)
 
                     embed.set_footer(text="Mew", icon_url=streamer["icon"])
                     embed.set_timestamp()
@@ -393,29 +292,9 @@ class PubSubLogging:
                         self.logging.info(f"Sent webhook, response:  {', '.join([str(response.status_code) for response in response])}")
                     elif type(response).__name__ == "str":
                         self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
+
                 elif message["type"] == "moderator_added":
-                    channel_name = streamer["username"]
-                    channel_display_name = streamer["display_name"]
-                    embed = DiscordEmbed(
-                        title=f"{message['type'].replace('_', ' ').title()} action",
-                        description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{message['data']['target_user_login']})",
-                        color=0x00FF00
-                    )
-                    embed.add_embed_field(
-                        name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                    embed.add_embed_field(
-                        name="Moderator", value=f"`{message['data']['created_by']}`", inline=True)
-                    embed.add_embed_field(
-                        name="Flagged Account", value=f"`{message['data']['target_user_login']}`", inline=True)
-
-                    embed.set_footer(text="Mew", icon_url=streamer["icon"])
-                    embed.set_timestamp()
-                    webhook.add_embed(embed)
-                    response = webhook.execute()
-                    if type(response).__name__ == "list":
-                        self.logging.info(f"Sent webhook, response:  {', '.join([str(response.status_code) for response in response])}")
-                    elif type(response).__name__ == "str":
-                        self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
+                    pass
 
                 elif message["type"] == "approve_unban_request" or message["type"] == "deny_unban_request":
                     channel_name = streamer["username"]
