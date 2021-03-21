@@ -16,7 +16,7 @@ import logging
 class PubSubLogging:
     def __init__(self):
         self.logging = logging.getLogger("Twitch Pubsub Logging")
-        self.logging.setLevel(logging.DEBUG)
+        self.logging.setLevel(logging.INFO)
         formatter = logging.Formatter("%(asctime)s %(levelname)s [%(module)s %(funcName)s %(lineno)d]: %(message)s", "%Y-%m-%d %I:%M:%S%p")
 
         #File logging
@@ -73,7 +73,7 @@ class PubSubLogging:
                 if self.connection.closed:
                     await asyncio.sleep(1**failed_attempts)
                     failed_attempts += 1
-                    self.logging.warning(f"{failed_attempts} failed attempts.")
+                    self.logging.warning(f"{failed_attempts} failed attempts to connect.")
                 else:
                     break
             self.logging.info("Connected to websocket")
