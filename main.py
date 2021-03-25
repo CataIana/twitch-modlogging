@@ -9,7 +9,11 @@ import sys
 from random import uniform
 from traceback import format_tb
 from datetime import datetime
-from discord_webhook import DiscordEmbed, DiscordWebhook
+from discord import NotFound
+from discord import Webhook as DiscordWebhook
+from discord import Embed as DiscordEmbed
+from discord import AsyncWebhookAdapter
+from aiohttp import ClientSession
 import logging
 
 
@@ -66,6 +70,7 @@ class PubSubLogging:
         self.loop.run_until_complete(self.main())
 
     async def main(self):
+        self.aioSession = ClientSession()
         while True:
             failed_attempts = 0
             while True:
@@ -123,8 +128,9 @@ class PubSubLogging:
                 message = json.loads(json_message["data"]["message"])
                 streamer_id = json_message["data"]["topic"].split(".")[-1]
                 streamer = self._streamers[streamer_id]
-                webhook = DiscordWebhook(
-                    url=streamer["webhook_urls"])
+                webhooks = []
+                for webhook in streamer["webhook_urls"]:
+                    webhooks.append(DiscordWebhook.from_url(webhook, adapter=AsyncWebhookAdapter(self.aioSession)))
                 if message["type"] == "moderation_action":
                     info = message["data"]
                     channel_name = streamer["username"]
@@ -149,33 +155,34 @@ class PubSubLogging:
                         "raid": "Raid Action",
                         "unraid": "Unraid Action"
                     }
-                    
+
                     if mod_action in name_dict.keys():
                         embed = DiscordEmbed(
                         title=name_dict[mod_action],
-                        color=0xFFFF00
+                        color=0xFFFF00,
+                        timestamp=datetime.utcnow()
                         )
-                        embed.add_embed_field(
+                        embed.add_field(
                             name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                        embed.add_embed_field(
+                        embed.add_field(
                             name="Moderator", value=f"`{info['created_by']}`", inline=True)
 
                     if mod_action == "slow":
-                        embed.add_embed_field(
-                            name="Slow Amount (seconds)", value=f"`{info['args'][0]}`", inline=True)
+                        embed.add_field(
+                            name=f"Slow Amount (second{'' if int(info['args'][0]) == 1 else 's'})", value=f"`{info['args'][0]}`", inline=True)
 
                     elif mod_action == "followers":
-                        embed.add_embed_field(
+                        embed.add_field(
                             name="Time Needed to be Following (minutes)", value=f"`{info['args'][0]}`", inline=True)
-                    
+
                     elif mod_action == "host":
-                        embed.add_embed_field(
+                        embed.add_field(
                             name="Hosted Channel", value=f"[{info['args'][0]}](https://www.twitch.tv/{info['args'][0]})", inline=True)
 
                     elif mod_action == "raid":
-                        embed.add_embed_field(
+                        embed.add_field(
                             name="Raided Channel", value=f"[{info['args'][0]}](https://www.twitch.tv/{info['args'][0]})", inline=True)
-                    
+
                     #Otherwise switch to user mod actions
                     if mod_action not in name_dict.keys():
                         title = f"Mod {mod_action.replace('_', ' ').title()} Action"
@@ -188,29 +195,31 @@ class PubSubLogging:
                         if info["args"] == None:
                             embed = DiscordEmbed(
                                 title=title,
-                                color=colour
+                                color=colour,
+                                timestamp=datetime.utcnow()
                             )
                         else:
                             embed = DiscordEmbed(
                                 title=title,
                                 description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{info['args'][0]})",
-                                color=colour
+                                color=colour,
+                                timestamp=datetime.utcnow()
                             )
 
-                        embed.add_embed_field(
+                        embed.add_field(
                             name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
                         if "created_by" in info.keys():
                             if info["created_by"] == "":
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Moderator", value=f"NONE", inline=True)
                             else:
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Moderator", value=f"`{info['created_by']}`", inline=True)
                         else:
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Moderator", value=f"NONE", inline=True)
                         try:
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Flagged Account", value=f"`{info['args'][0]}`", inline=True)
                         except KeyError:
                             pass
@@ -218,35 +227,35 @@ class PubSubLogging:
                             pass
                         if mod_action == "timeout":
                             if info['args'][2] == "":
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Flag Reason", value=f"`None Provided`", inline=False)
                             else:
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Flag Reason", value=f"`{info['args'][2]}`", inline=False)
 
-                            embed.add_embed_field(
-                                name="Duration", value=f"{info['args'][1]} seconds", inline=False)
+                            embed.add_field(
+                                name="Duration", value=f"{info['args'][1]} second{'' if int(info['args'][1]) == 1 else 's'}", inline=False)
                             if info['msg_id'] == "":
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Message ID", value=f"NONE", inline=False)
                             else:
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Message ID", value=f"`{info['msg_id']}`", inline=False)
                         elif mod_action == "untimeout":
                             pass
                         elif mod_action == "ban":
                             if info['args'][1] == "":
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Flag Reason", value=f"`None Provided`", inline=False)
                             else:
-                                embed.add_embed_field(
+                                embed.add_field(
                                     name="Flag Reason", value=f"`{info['args'][1]}`", inline=False)
                         elif mod_action == "unban":
                             pass
                         elif mod_action == "delete":
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Message", value=f"`{info['args'][1]}`", inline=False)
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Message ID", value=f"`{info['args'][2]}`", inline=False)
 
                         elif mod_action == "unmod":
@@ -256,42 +265,40 @@ class PubSubLogging:
 
                         #Automod stuff
                         elif mod_action == "automod_rejected":
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Message", value=f"`{info['args'][1]}`", inline=False)
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Rejected Reason", value=f"`{info['args'][2]}`", inline=False)
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Message ID", value=f"`{info['msg_id']}`", inline=False)
                         elif mod_action == "approved_automod_message":
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Message ID", value=f"`{info['msg_id']}`", inline=False)
                         elif mod_action == "add_permitted_term":
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Added by", value=f"`{info['created_by']}`", inline=False)
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Value", value=f"`{info['args'][0]}`", inline=False)
                         elif mod_action == "add_blocked_term":
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Added by", value=f"`{info['created_by']}`", inline=False)
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Value", value=f"`{info['args'][0]}`", inline=False)
                         elif mod_action == "delete_permitted_term":
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Removed by", value=f"`{info['created_by']}`", inline=False)
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="Value", value=f"`{info['args'][0]}`", inline=False)
                         else: #In case there's something new/unknown that happens
-                            embed.add_embed_field(
+                            embed.add_field(
                                 name="UNKNOWN ACTION", value=f"`{mod_action}`", inline=False)
 
                     embed.set_footer(text="Mew", icon_url=streamer["icon"])
-                    embed.set_timestamp()
-                    webhook.add_embed(embed)
-                    response = webhook.execute()
-                    if type(response).__name__ == "list":
-                        self.logging.info(f"Sent webhook, response:  {', '.join([str(response.status_code) for response in response])}")
-                    elif type(response).__name__ == "str":
-                        self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
+                    for webhook in webhooks:
+                        try:
+                            await webhook.send(embed=embed)
+                        except NotFound:
+                            self.logging.error("Unknown Webhook")
 
                 elif message["type"] == "moderator_added":
                     pass
@@ -306,24 +313,23 @@ class PubSubLogging:
                     embed = DiscordEmbed(
                         title=f"Mod {message['type'].replace('_', ' ').title()} action",
                         description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{message['data']['target_user_login']})",
-                        color=colour
+                        color=colour,
+                        timestamp=datetime.utcnow()
                     )
-                    embed.add_embed_field(
+                    embed.add_field(
                         name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
-                    embed.add_embed_field(
+                    embed.add_field(
                         name="Moderator", value=f"`{message['data']['created_by_login']}`", inline=True)
-                    embed.add_embed_field(
+                    embed.add_field(
                         name="Flagged Account", value=f"`{message['data']['target_user_login']}`", inline=True)
 
                     embed.set_footer(text="Mew", icon_url=streamer["icon"])
-                    embed.set_timestamp()
-                    webhook.add_embed(embed)
-                    response = webhook.execute()
-                    if type(response).__name__ == "list":
-                        self.logging.info(f"Sent webhook, response:  {', '.join([str(response.status_code) for response in response])}")
-                    elif type(response).__name__ == "str":
-                        self.logging.info(f"Sent webhook, response:  {str(response.status_code)}")
-                    
+                    for webhook in webhooks:
+                        try:
+                            await webhook.send(embed=embed)
+                        except NotFound:
+                            self.logging.error("Webhook Not Found")
+
                 else:
                     raise TypeError("Unknown Type")
         except Exception as e:
@@ -334,32 +340,22 @@ class PubSubLogging:
                 return
             streamer_id = json.loads(str(raw_message))["data"]["topic"].split(".")[-1]
             streamer = self._streamers[streamer_id]
-            webhook = DiscordWebhook(url=streamer["webhook_urls"])
+            webhooks = []
+            for webhook in streamer["webhook_urls"]:
+                webhooks.append(DiscordWebhook.from_url(webhook, adapter=AsyncWebhookAdapter(self.aioSession)))
             embed = DiscordEmbed(
                 title=f"Safety Embed",
                 description=f"If you see this something went wrong in the embed process, with the data from Twitch, or with how we are handling the Twitch Data.",
-                color=0x880080
+                color=0x880080,
+                timestamp=datetime.utcnow()
             )
-            embed.add_embed_field(
+            embed.add_field(
                 name="Traceback", value=f"```python\n{formatted_exception}```", inline=False)
-            embed.add_embed_field(
+            embed.add_field(
                 name="Debug Data", value=f"`{json.loads(str(raw_message))}`", inline=False)
             embed.set_footer(text="Mew", icon_url=streamer["icon"])
-            embed.set_timestamp()
-            webhook.add_embed(embed)
-            response = webhook.execute()
-            if type(response).__name__ == "list":
-                response_list = [str(response.status_code) for response in response]
-                if all([True for response in response_list if response == "200"]):
-                    self.logging.debug(f"Sent webhook, response:  {', '.join(response_list)}")
-                else:
-                    self.logging.warning(f"Sent webhook, response:  {', '.join(response_list)}")
-            elif type(response).__name__ == "str":
-                if str(response.status_code) == "200":
-                    self.logging.debug(f"Sent webhook, response:  {str(response.status_code)}")
-                else:
-                    self.logging.warning(f"Sent webhook, response:  {str(response.status_code)}")
-
+            for webhook in webhooks:
+                await webhook.send(embed=embed)
 
 p = PubSubLogging()
 p.run()

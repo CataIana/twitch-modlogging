@@ -1,4 +1,5 @@
 websockets
 asyncio
-discord_webhook
+discord.py
+aiohttp
 systemd
