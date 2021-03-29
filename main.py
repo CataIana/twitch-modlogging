@@ -322,6 +322,9 @@ class PubSubLogging:
                         name="Moderator", value=f"`{message['data']['created_by_login']}`", inline=True)
                     embed.add_field(
                         name="Flagged Account", value=f"`{message['data']['target_user_login']}`", inline=True)
+                    embed.add_field(
+                        name="Moderator Reason", value=f"{message['data']['moderator_message']}", inline=False
+                    )
 
                     embed.set_footer(text="Mew", icon_url=streamer["icon"])
                     for webhook in webhooks:
