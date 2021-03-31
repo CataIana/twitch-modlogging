@@ -269,11 +269,16 @@ class PubSubLogging:
                             pass
 
                         #Automod stuff
+                        elif mod_action == "channel_terms_action":
+                            return
                         elif mod_action == "automod_rejected":
                             embed.add_field(
                                 name="Message", value=f"`{info['args'][1]}`", inline=False)
                             embed.add_field(
                                 name="Rejected Reason", value=f"`{info['args'][2]}`", inline=False)
+                            embed.add_field(
+                                name="Message ID", value=f"`{info['msg_id']}`", inline=False)
+                        elif mod_action == "approved_automod_message":
                             embed.add_field(
                                 name="Message ID", value=f"`{info['msg_id']}`", inline=False)
                         elif mod_action == "add_permitted_term":
@@ -293,6 +298,12 @@ class PubSubLogging:
                             embed.add_field(
                                 name="From Automod", value=f"`{info['from_automod']}`", inline=False)
                             embed.remove_field(2)
+                        elif mod_action in ["delete_permitted_term", "delete_blocked_term"]:
+                            embed.add_field(
+                                name="Removed by", value=f"`{info['created_by']}`", inline=False)
+                            embed.add_field(
+                                name="Value", value=f"`{info['args'][0]}`", inline=False)
+                            embed.remove_field(2)
                         else: #In case there's something new/unknown that happens
                             embed.add_field(
                                 name="UNKNOWN ACTION", value=f"`{mod_action}`", inline=False)
@@ -305,6 +316,9 @@ class PubSubLogging:
                             self.logging.error("Unknown Webhook")
 
                 elif message["type"] == "moderator_added":
+                    pass
+        
+                elif message["type"] == "channel_terms_action":
                     pass
 
                 elif message["type"] == "approve_unban_request" or message["type"] == "deny_unban_request":
