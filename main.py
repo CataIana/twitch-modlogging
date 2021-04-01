@@ -192,7 +192,7 @@ class PubSubLogging:
                             colour = 0x00FF00
                         if mod_action == "unmod":
                             title = "Moderator Removed Action"
-                        if info["args"] == None:
+                        if info["args"] == None or mod_action in ["delete_permitted_term", "add_permitted_term", "add_blocked_term", "delete_blocked_term"]:
                             embed = DiscordEmbed(
                                 title=title,
                                 color=colour,
@@ -352,7 +352,7 @@ class PubSubLogging:
                             self.logging.error("Webhook Not Found")
 
                 else:
-                    raise TypeError("Unknown Type")
+                    raise TypeError(f"Unknown Type {message['type']}")
         except Exception as e:
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(format_tb(e.__traceback__)) + f"{type(e).__name__}: {e}"
             self.logging.error(formatted_exception)
