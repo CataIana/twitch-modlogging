@@ -252,6 +252,8 @@ class PubSubLogging:
                                     name="Flag Reason", value=f"`{info['args'][1]}`", inline=False)
                         elif mod_action == "unban":
                             pass
+                        elif mod_action == "delete_notification":
+                            return
                         elif mod_action == "delete":
                             embed.add_field(
                                 name="Message", value=f"`{info['args'][1]}`", inline=False)
