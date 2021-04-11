@@ -31,7 +31,7 @@ class PubSubLogging:
 
         #Console logging
         chandler = logging.StreamHandler(sys.stdout)
-        chandler.setLevel(logging.DEBUG)
+        chandler.setLevel(self.logging.level)
         chandler.setFormatter(formatter)
         self.logging.addHandler(chandler)
 
@@ -263,7 +263,7 @@ class PubSubLogging:
                         elif mod_action == "unmod":
                             pass
                         elif mod_action == "mod":
-                            pass
+                            return
 
                         elif mod_action == "vip":
                             pass
@@ -318,7 +318,27 @@ class PubSubLogging:
                             self.logging.error("Unknown Webhook")
 
                 elif message["type"] == "moderator_added":
-                    pass
+                    channel_name = streamer["username"]
+                    channel_display_name = streamer["display_name"]
+                    embed = DiscordEmbed(
+                        title=f"{message['type'].replace('_', ' ').title()} action",
+                        description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{message['data']['target_user_login']})",
+                        color=0x00FF00,
+                        timestamp=datetime.utcnow()
+                    )
+                    embed.add_field(
+                        name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True)
+                    embed.add_field(
+                        name="Moderator", value=f"`{message['data']['created_by']}`", inline=True)
+                    embed.add_field(
+                        name="Flagged Account", value=f"`{message['data']['target_user_login']}`", inline=True)
+
+                    embed.set_footer(text="Mew", icon_url=streamer["icon"])
+                    for webhook in webhooks:
+                        try:
+                            await webhook.send(embed=embed)
+                        except NotFound:
+                            self.logging.error("Unknown Webhook")
         
                 elif message["type"] == "channel_terms_action":
                     pass
@@ -343,7 +363,7 @@ class PubSubLogging:
                     embed.add_field(
                         name="Flagged Account", value=f"`{message['data']['target_user_login']}`", inline=True)
                     embed.add_field(
-                        name="Moderator Reason", value=f"{message['data']['moderator_message']}", inline=False
+                        name="Moderator Reason", value=f"{message['data']['moderator_message'] if message['data']['moderator_message'] != '' else 'NONE'}", inline=False
                     )
 
                     embed.set_footer(text="Mew", icon_url=streamer["icon"])
