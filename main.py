@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import asyncio
-import websockets
+from websockets import client as wclient
+from websockets.exceptions import ConnectionClosed
 from requests import get
 import uuid
 import json
@@ -10,7 +11,6 @@ from random import uniform
 from traceback import format_tb
 from datetime import datetime
 from time import time
-import pytz
 from discord import NotFound
 from discord import Webhook as DiscordWebhook
 from discord import Embed as DiscordEmbed
@@ -75,7 +75,7 @@ class PubSubLogging:
         while True:
             failed_attempts = 0
             while True:
-                self.connection = await websockets.client.connect("wss://pubsub-edge.twitch.tv")
+                self.connection = await wclient.connect("wss://pubsub-edge.twitch.tv")
                 if self.connection.closed:
                     await asyncio.sleep(1**failed_attempts)
                     failed_attempts += 1
@@ -95,7 +95,7 @@ class PubSubLogging:
                 message = await self.connection.recv()
                 #self.logging.info('Received message from server: ' + str(message))
                 await self.messagehandler(message)
-            except websockets.exceptions.ConnectionClosed:
+            except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
                 break
 
@@ -107,7 +107,7 @@ class PubSubLogging:
                 self.logging.debug("Ping!")
                 await self.connection.send(json_request)
                 await asyncio.sleep(120+uniform(-0.25, 0.25))
-            except websockets.exceptions.ConnectionClosed:
+            except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
                 break
 
