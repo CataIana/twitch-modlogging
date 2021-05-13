@@ -3,6 +3,7 @@ This is my version of modlogging with python.
 
 Figuring out how to do this was a pain, and there was nothing good on the internet that I could find, so I might as well give it out to anyone who might want it.
 
+Automod is currently very broken, and needs frequent updates as twitch keeps changing what data is sent, if at all.
 
 ### Installation
 
