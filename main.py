@@ -25,7 +25,7 @@ class PubSubLogging:
         formatter = logging.Formatter("%(asctime)s %(levelname)s [%(module)s %(funcName)s %(lineno)d]: %(message)s", "%Y-%m-%d %I:%M:%S%p")
 
         #File logging
-        fh = logging.FileHandler("log.log")
+        fh = logging.FileHandler("log.log", "w")
         fh.setLevel(logging.WARNING)
         fh.setFormatter(formatter)
         self.logging.addHandler(fh)
@@ -271,7 +271,7 @@ class PubSubLogging:
                         elif mod_action == "unvip":
                             pass
 
-                        if mod_action in ["automod_rejected", "automod_message_rejected"]:
+                        elif mod_action in ["automod_rejected", "automod_message_rejected"]:
                             embed.add_field(
                                 name="Message", value=f"`{info['args'][1]}`", inline=False)
                             embed.add_field(

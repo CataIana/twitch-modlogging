@@ -6,7 +6,7 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 
 ### Installation
 
-* Install the updated python systemd library with `sudo apt install python3-systemd` 
+* Install the updated python systemd library with `sudo apt install python3-systemd libsystemd-dev` 
 
 * Clone the repo `git clone https://github.com/CataIana/twitch-modlogging.git`
 
