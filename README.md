@@ -7,7 +7,7 @@ Automod is currently very broken, and needs frequent updates as twitch keeps cha
 
 ### Installation
 
-* Install the updated python systemd library with `sudo apt install python3-systemd libsystemd-dev` 
+* Install the updated python systemd library with `sudo apt install libsystemd-dev` 
 
 * Clone the repo `git clone https://github.com/CataIana/twitch-modlogging.git`
 
