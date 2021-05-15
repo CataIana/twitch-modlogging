@@ -491,6 +491,9 @@ class PubSubLogging:
                         except NotFound:
                             self.logging.error("Webhook Not Found")
 
+                elif message["type"] == "vip_added":
+                    return
+
                 else:
                     raise TypeError(f"Unknown Type {message['type']}")
         except Exception as e:
