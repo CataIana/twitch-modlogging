@@ -2,4 +2,3 @@ websockets
 asyncio
 discord.py
 aiohttp
-systemd
