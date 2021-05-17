@@ -122,13 +122,16 @@ class Parser:
         self.embed_text = "\n"
         if d.get("title", None) is not None:
             self.embed_text += f"**{d['title']}**"
+        self.embed_text += f" **|** **Moderator:** {d['fields'][1]['value']}"
         if d.get("description", None) is not None:
-            self.embed_text += f" **|** **Moderator:** {d['fields'][1]['value']} **|** [Viewercard](<{d['description'].split('(', 1)[1][:-1]}>)\n"
-        
+            self.embed_text += f" **|** [Viewercard](<{d['description'].split('(', 1)[1][:-1]}>)\n"
         else:
             self.embed_text += "\n"
         self.embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
-        self.embed_text += "\n᲼"
+        if len(d['fields'][2:]) > 0:
+            self.embed_text += "\n᲼"
+        else:
+            self.embed_text += "᲼"
 
     async def approve_unban_request(self):
         self.embed.colour = 0x00FF00
@@ -177,7 +180,7 @@ class Parser:
     async def host(self):
         await self.set_chatroom_attrs()
         self.embed.add_field(
-            name="Hosted Channel", value=f"[{self.info['args'][0]}](https://www.twitch.tv/{self.info['args'][0]})", inline=True)
+            name="Hosted Channel", value=f"[{self.info['args'][0]}](<https://www.twitch.tv/{self.info['args'][0]}>)", inline=True)
 
     async def unhost(self):
         return await self.set_chatroom_attrs()
