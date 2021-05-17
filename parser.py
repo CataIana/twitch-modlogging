@@ -27,7 +27,9 @@ class Parser:
             except KeyError:
                 self.mod_action = self._message["type"]
 
-        if self.mod_action in ["mod", "delete_notification", "vip_added"]:
+        if self.mod_action in ["delete_notification", "vip_added"]:
+            self.ignore_message = True
+        if self.mod_action == "mod" and self._message["type"] == "moderator_added":
             self.ignore_message = True
 
         self._chatroom_actions = {
