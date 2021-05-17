@@ -5,8 +5,6 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 
 ### Installation
 
-* Install a depdency for building an updated version of the systemd library: `sudo apt install libsystemd-dev` 
-
 * Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
 
 * Only versions Python 3.6 and above are supported.
