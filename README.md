@@ -8,8 +8,6 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 
 * Only versions Python 3.6 and above are supported.
 
-* Using 
-
 * Install the required dependencies `cd twitch-modlogging && sudo pip3 install --upgrade -r requirements.txt` on linux. Replace `sudo pip3` with `pip` on windows, make sure your terminal has administrator privilages
 
 * Copy `examplesettings.json` to `settings.json`
