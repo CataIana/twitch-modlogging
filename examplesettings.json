@@ -4,6 +4,10 @@
         "auth_token": "",
         "client_id": ""
     },
+    "_config": {
+        "use_embeds": true,
+        "ignored_moderators": []
+    },
     "somestreamername": [
         "https://discord.com/api/webhooks/whatever",
         "https://discord.com/api/webhooks/whatever"
