@@ -5,19 +5,30 @@ from aiohttp import ClientSession
 from discord import NotFound
 from datetime import datetime
 from time import time
+import json
 
 
 class Parser:
-    def __init__(self, streamer, info):
-        self.info = info
-        self.streamer = streamer
-        channel_name = streamer["username"]
-        channel_display_name = streamer["display_name"]
-        mod_action = info["moderation_action"].lower()
-        title = f"Mod {mod_action.replace('_', ' ').title()} Action"
-        colour = 0xFF0000
+    def __init__(self, parent, data):
+        self.parent = parent
+        self._message = json.loads(data["message"])
+        self.info = self._message["data"]
+        self.streamer = self.parent._streamers[data["topic"].split(".")[-1]]
+        self.ignore_message = False
+        self.footer_message = "Mew"
 
-        name_dict = {
+        try:
+            self.mod_action = self.info["moderation_action"].lower()
+        except KeyError:
+            try:
+                self.mod_action = self.info["type"]
+            except KeyError:
+                self.mod_action = self._message["type"]
+
+        if self.mod_action in ["mod", "delete_notification", "vip_added"]:
+            self.ignore_message = True
+
+        self._chatroom_actions = {
             "slow": "Slow Chat Mode Enabled",
             "slowoff": "Slow Chat Mode Disabled",
             "r9kbeta": "Unique Chat Mode Enabled",
@@ -34,121 +45,128 @@ class Parser:
             "raid": "Raid Action",
             "unraid": "Unraid Action"
         }
-        
-        if name_dict.get(mod_action, None) is not None:
-            self.embed = DiscordEmbed(title=name_dict[mod_action], color=0xFFFF00, timestamp=datetime.utcnow())
-        else:
-            if mod_action in ["moderator_added", "moderator_removed"]:
-                user = info['args'][0]
-            else:
-                user = info["target_user_login"]
-            self.embed = DiscordEmbed(title=title,
-                description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{channel_name}/viewercard/{user})",
-                color=colour, timestamp=datetime.utcnow())
 
-        self.embed.add_field(
-            name="Channel", value=f"[{channel_display_name}](https://www.twitch.tv/{channel_name})", inline=True) #Every embed should have the channel link
+        self.embed = DiscordEmbed(timestamp=datetime.utcnow())
 
-        if info.get("created_by", "") == "":
-            self.embed.add_field(
-                name="Moderator", value=f"NONE", inline=True)
-        else:
-            self.embed.add_field(
-                name="Moderator", value=f"`{info['created_by']}`", inline=True)
-        if name_dict.get(mod_action, None) is None:
-            try:
-                self.embed.add_field(
-                    name="Flagged Account", value=f"`{info['args'][0]}`", inline=True)
-            except KeyError:
-                pass
-            except TypeError:
-                pass
-
-        if mod_action in ["approve_unban_request", "deny_unban_request"]:
-            self.embed.add_field(
-                name="Moderator Reason", value=f"{self.info['moderator_message'] if self.info['moderator_message'] != '' else 'NONE'}", inline=False
-            )
-
-    async def send(self, session = None):
+    async def send(self, session=None):
         session = ClientSession() or session
         webhooks = []
-        for webhook in self.streamer["webhook_urls"]:
-            webhooks.append(DiscordWebhook.from_url(webhook, adapter=AsyncWebhookAdapter(session)))
-        self.embed.set_footer(text="Mew", icon_url=self.streamer["icon"])
+        for webhook in self.streamer.webhook_urls:
+            webhooks.append(DiscordWebhook.from_url(
+                webhook, adapter=AsyncWebhookAdapter(session)))
+        self.embed.set_footer(text=self.footer_message, icon_url=self.streamer.icon)
         for webhook in webhooks:
             try:
                 await webhook.send(embed=self.embed)
             except NotFound:
-                #self.logging.error(f"Webhook not found for {self.streamer}")
-                print(f"Webhook not found for {self.streamer['username']}")
+                self.parent.log.warning(f"Webhook not found for {self.streamer.username}")
         await session.close()
 
-    async def get_embed(self):
+    async def set_user_attrs(self):
+        user = self.info["target_user_login"] or self.info['args'][0]
+        self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
+        self.embed.description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()})"
+        self.embed.color=0xFF0000
+        self.embed.add_field(
+                name="Flagged Account", value=f"`{user.lower()}`", inline=True)
+
+    async def set_terms_attrs(self):
+        self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
+        self.embed.color=0xFF0000
+
+    async def set_appeals_attrs(self):
+        await self.set_user_attrs()
+        self.embed.add_field(
+                name="Moderator Reason", value=f"{self.info['moderator_message'] if self.info['moderator_message'] != '' else 'NONE'}", inline=False)
+
+    async def set_chatroom_attrs(self):
+        self.embed.title=self._chatroom_actions[self.mod_action]
+        self.embed.color=0xFFFF00
+
+    async def create_embed(self):
+        self.embed.add_field(
+            name="Channel", value=f"[{self.streamer.display_name}](https://www.twitch.tv/{self.streamer.username})", inline=True)  # Every embed should have the channel link
+
+        if self.info.get("created_by", "") == "": #Try get who performed the action
+            if self.info.get("created_by_login", "") == "":
+                self.embed.add_field(
+                    name="Moderator", value=f"NONE", inline=True)
+            else:
+                self.embed.add_field(
+                    name="Moderator", value=f"`{self.info['created_by_login']}`", inline=True)
+        else:
+            self.embed.add_field(
+                name="Moderator", value=f"`{self.info['created_by']}`", inline=True)
+
         try:
-            mod_action_func = getattr(self, self.info["moderation_action"].lower())
-            r = await mod_action_func()
-            if r == 0:
-                return
+            mod_action_func = getattr(self, self.mod_action.lower())
+            await mod_action_func()
         except AttributeError:
-            self.embed.add_field(name="UNKNOWN ACTION", value=f"`{self.info['moderation_action']}`", inline=False)
-        return self.embed
+            self.embed.add_field(
+                name="UNKNOWN ACTION", value=f"`{self.mod_action}`", inline=False)
 
     async def approve_unban_request(self):
-        return
+        self.embed.colour = 0x00FF00
+        return await self.set_appeals_attrs()
 
     async def deny_unban_request(self):
-        return
+        return await self.set_appeals_attrs()
 
     async def slow(self):
+        await self.set_chatroom_attrs()
         self.embed.add_field(
             name=f"Slow Amount (second{'' if int(self.info['args'][0]) == 1 else 's'})", value=f"`{self.info['args'][0]}`", inline=True)
 
     async def slowoff(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def r9kbeta(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def r9kbetaoff(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def clear(self):
-        return
-    
+        return await self.set_chatroom_attrs()
+
     async def emoteonly(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def emoteonlyoff(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def subscribers(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def subscribersoff(self):
-        return
-    
+        return await self.set_chatroom_attrs()
+
     async def followers(self):
+        await self.set_chatroom_attrs()
         self.embed.add_field(
             name="Time Needed to be Following (minutes)", value=f"`{self.info['args'][0]}`", inline=True)
-    
+
     async def followersoff(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def host(self):
+        await self.set_chatroom_attrs()
         self.embed.add_field(
             name="Hosted Channel", value=f"[{self.info['args'][0]}](https://www.twitch.tv/{self.info['args'][0]})", inline=True)
 
     async def unhost(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def raid(self):
+        await self.set_chatroom_attrs()
         self.embed.add_field(
             name="Raided Channel", value=f"[{self.info['args'][0]}](https://www.twitch.tv/{self.info['args'][0]})", inline=True)
 
     async def unraid(self):
-        return
+        return await self.set_chatroom_attrs()
 
     async def timeout(self):
+        await self.set_user_attrs()
         if self.info['args'][2] == "":
             self.embed.add_field(
                 name="Flag Reason", value=f"`None Provided`", inline=False)
@@ -167,45 +185,49 @@ class Parser:
         return
 
     async def untimeout(self):
-        return
+        return await self.set_user_attrs()
 
     async def ban(self):
+        await self.set_user_attrs()
         if self.info['args'][1] == "":
             self.embed.add_field(
                 name="Flag Reason", value=f"`None Provided`", inline=False)
         else:
             self.embed.add_field(
                 name="Flag Reason", value=f"`{self.info['args'][1]}`", inline=False)
-        return
 
     async def unban(self):
-        return
+        self.embed.colour = 0x00FF00
+        return await self.set_user_attrs()
 
     async def delete_notification(self):
-        return 0
+        return await self.set_user_attrs()
 
     async def delete(self):
+        await self.set_user_attrs()
         self.embed.add_field(
             name="Message", value=f"`{self.info['args'][1]}`", inline=False)
         self.embed.add_field(
             name="Message ID", value=f"`{self.info['args'][2]}`", inline=False)
-        return
 
     async def mod(self):
+        await self.set_user_attrs()
         self.embed.title = "Moderator Added Action"
         self.embed.colour = 0x00FF00
-        return
 
     async def unmod(self):
+        await self.set_user_attrs()
         self.embed.title = "Moderator Removed Action"
 
     async def vip(self):
+        await self.set_user_attrs()
         self.embed.colour = 0x00FF00
 
     async def unvip(self):
-        return
+        return await self.set_user_attrs()
 
     async def automod_rejected(self):
+        await self.set_user_attrs()
         self.embed.add_field(
             name="Message", value=f"`{self.info['args'][1]}`", inline=False)
         self.embed.add_field(
@@ -214,51 +236,59 @@ class Parser:
             name="Message ID", value=f"`{self.info['msg_id']}`", inline=False)
 
     async def approved_automod_message(self):
+        await self.set_user_attrs()
         self.embed.add_field(
             name="Message ID", value=f"`{self.info['msg_id']}`", inline=False)
 
     async def denied_automod_message(self):
+        await self.set_user_attrs()
         self.embed.add_field(
             name="Message ID", value=f"`{self.info['msg_id']}`", inline=False)
 
     async def add_permitted_term(self):
-        self.embed.description = None
+        await self.set_terms_attrs()
         self.embed.add_field(
-            name="Added by", value=f"`{self.info['requester_login']}`", inline=False)
+            name="Added by", value=f"`{self.info['requester_login']}`", inline=True)
         self.embed.add_field(
             name="Value", value=f"`{self.info['text']}`", inline=False)
         self.embed.add_field(
             name="From Automod", value=f"`{self.info['from_automod']}`", inline=False)
         if self.info["expires_at"] != "":
             d = datetime.strptime(self.info["expires_at"][:-4] + "Z", "%Y-%m-%dT%H:%M:%S.%fZ")
-            epoch = time() - d.timestamp()
-            days = str(epoch // 86400).split('.')[0]
-            hours = str(epoch // 3600 % 24).split('.')[0]
-            minutes = str(epoch // 60 % 60).split('.')[0]
-            seconds = str(epoch % 60).split('.')[0]
+            unix = float(d.timestamp())
+            epoch = time() - unix
+            days = int(str(epoch // 86400).split('.')[0])
+            hours = int(str(epoch // 3600 % 24).split('.')[0])
+            minutes = int(str(epoch // 60 % 60).split('.')[0])
+            seconds = int(str(epoch % 60).split('.')[0])
 
             full = []
-            if days != 0: full.append(f"{days}d")
-            if hours != 0: full.append(f"{hours}h")
-            if minutes != 0: full.append(f"{minutes}m")
-            if seconds != 0: full.append(f"{seconds}s")
+            if days != 0:
+                full.append(f"{days}d")
+            if hours != 0:
+                full.append(f"{hours}h")
+            if minutes != 0:
+                full.append(f"{minutes}m")
+            if seconds != 0:
+                full.append(f"{seconds}s")
 
             expiry = ''.join(full)
         else:
             expiry = "Permanent"
         self.embed.add_field(
             name="Expires in", value=expiry, inline=True)
-        self.embed.remove_field(2)
+        self.embed.remove_field(1)
 
     async def add_blocked_term(self):
-        await self.add_permitted_term(self)
+        return await self.add_permitted_term()
 
     async def delete_permitted_term(self):
+        await self.set_terms_attrs()
         self.embed.add_field(
-            name="Removed by", value=f"`{self.info['created_by']}`", inline=False)
+            name="Removed by", value=f"`{self.info['requester_login']}`", inline=True)
         self.embed.add_field(
-            name="Value", value=f"`{self.info['args'][0]}`", inline=False)
-        self.embed.remove_field(2)
+            name="Value", value=f"`{self.info['text']}`", inline=False)
+        self.embed.remove_field(1)
 
     async def delete_blocked_term(self):
-        await self.delete_permitted_term(self)
+        return await self.delete_permitted_term()
