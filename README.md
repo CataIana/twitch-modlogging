@@ -1,5 +1,4 @@
-# Twitch Modlogging Using Websockets and Python
-This is my version of mod logging with python.
+# Twitch mod logging with Python
 
 Figuring out how to do this was a pain, and there was nothing good on the internet that I could find, so I might as well give it out to anyone who might want it.
 
