@@ -63,6 +63,11 @@ class PubSubLogging:
             del channels["authorization"]
         except KeyError:
             raise TypeError("Unable to fetch user ID and Authorization Token!")
+
+        self.use_embeds = channels["_config"].get("use_embeds", True)
+        self.ignored_mods = channels["_config"].get("ignored_moderators", [])
+        del channels["_config"]
+
         try:
             # Get information of each defined streamer, such as ID, icon, and display name
             self._streamers = {}
@@ -153,9 +158,9 @@ class PubSubLogging:
                 await self.connection.close()
             elif json_message["type"] == "MESSAGE":
                 # Data parser, along with all the switches for various mod actions
-                p = Parser(self, json_message["data"])
+                p = Parser(self, json_message["data"], use_embeds=self.use_embeds)
+                await p.create_message()
                 if not p.ignore_message:  # Some messages can be ignored as duplicates are recieved etc
-                    await p.create_embed()
                     await p.send(self.aioSession)
 
         except Exception as e:

@@ -9,13 +9,15 @@ import json
 
 
 class Parser:
-    def __init__(self, parent, data):
+    def __init__(self, parent, data, **kwargs):
         self.parent = parent
         self._message = json.loads(data["message"])
         self.info = self._message["data"]
         self.streamer = self.parent._streamers[data["topic"].split(".")[-1]]
         self.ignore_message = False
         self.footer_message = "Mew"
+
+        self.use_embeds = kwargs.get("use_embeds", True)
 
         try:
             self.mod_action = self.info["moderation_action"].lower()
@@ -57,7 +59,10 @@ class Parser:
         self.embed.set_footer(text=self.footer_message, icon_url=self.streamer.icon)
         for webhook in webhooks:
             try:
-                await webhook.send(embed=self.embed)
+                if self.use_embeds:
+                    await webhook.send(embed=self.embed)
+                else:
+                    await webhook.send(content=self.embed_text)
             except NotFound:
                 self.parent.log.warning(f"Webhook not found for {self.streamer.username}")
         await session.close()
@@ -83,7 +88,7 @@ class Parser:
         self.embed.title=self._chatroom_actions[self.mod_action]
         self.embed.color=0xFFFF00
 
-    async def create_embed(self):
+    async def create_message(self):
         self.embed.add_field(
             name="Channel", value=f"[{self.streamer.display_name}](https://www.twitch.tv/{self.streamer.username})", inline=True)  # Every embed should have the channel link
 
@@ -91,12 +96,18 @@ class Parser:
             if self.info.get("created_by_login", "") == "":
                 self.embed.add_field(
                     name="Moderator", value=f"NONE", inline=True)
+                moderator = None
             else:
                 self.embed.add_field(
                     name="Moderator", value=f"`{self.info['created_by_login']}`", inline=True)
+                moderator = self.info["created_by_login"]
         else:
             self.embed.add_field(
                 name="Moderator", value=f"`{self.info['created_by']}`", inline=True)
+            moderator = self.info["created_by"]
+
+        if moderator in self.parent.ignored_mods:
+            self.ignore_message = True
 
         try:
             mod_action_func = getattr(self, self.mod_action.lower())
@@ -104,6 +115,18 @@ class Parser:
         except AttributeError:
             self.embed.add_field(
                 name="UNKNOWN ACTION", value=f"`{self.mod_action}`", inline=False)
+
+        d = self.embed.to_dict()
+        self.embed_text = "\n"
+        if d.get("title", None) is not None:
+            self.embed_text += f"**{d['title']}**"
+        if d.get("description", None) is not None:
+            self.embed_text += f" **|** **Moderator:** {d['fields'][1]['value']} **|** [Viewercard](<{d['description'].split('(', 1)[1][:-1]}>)\n"
+        
+        else:
+            self.embed_text += "\n"
+        self.embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
+        self.embed_text += "\n᲼"
 
     async def approve_unban_request(self):
         self.embed.colour = 0x00FF00
@@ -176,13 +199,6 @@ class Parser:
 
         self.embed.add_field(
             name="Duration", value=f"{self.info['args'][1]} second{'' if int(self.info['args'][1]) == 1 else 's'}", inline=False)
-        if self.info['msg_id'] == "":
-            self.embed.add_field(
-                name="Message ID", value=f"NONE", inline=False)
-        else:
-            self.embed.add_field(
-                name="Message ID", value=f"`{self.info['msg_id']}`", inline=False)
-        return
 
     async def untimeout(self):
         return await self.set_user_attrs()
