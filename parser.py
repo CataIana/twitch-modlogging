@@ -72,10 +72,10 @@ class Parser:
     async def set_user_attrs(self):
         user = self.info["target_user_login"] or self.info['args'][0]
         self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
-        self.embed.description=f"[Review Viewercard for User](https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()})"
+        #self.embed.description=f"[Review Viewercard for User](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()}>)"
         self.embed.color=0xFF0000
         self.embed.add_field(
-                name="Flagged Account", value=f"`{user.lower()}`", inline=True)
+                name="Flagged Account", value=f"[{user.lower()}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()}>)", inline=True)
 
     async def set_terms_attrs(self):
         self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
@@ -92,7 +92,7 @@ class Parser:
 
     async def create_message(self):
         self.embed.add_field(
-            name="Channel", value=f"[{self.streamer.display_name}](https://www.twitch.tv/{self.streamer.username})", inline=True)  # Every embed should have the channel link
+            name="Channel", value=f"[{self.streamer.display_name}](<https://www.twitch.tv/{self.streamer.username}>)", inline=True)  # Every embed should have the channel link
 
         if self.info.get("created_by", "") == "": #Try get who performed the action
             if self.info.get("created_by_login", "") == "":
@@ -101,11 +101,11 @@ class Parser:
                 moderator = None
             else:
                 self.embed.add_field(
-                    name="Moderator", value=f"`{self.info['created_by_login']}`", inline=True)
+                    name="Moderator", value=f"{self.info['created_by_login'].title()}", inline=True)
                 moderator = self.info["created_by_login"]
         else:
             self.embed.add_field(
-                name="Moderator", value=f"`{self.info['created_by']}`", inline=True)
+                name="Moderator", value=f"{self.info['created_by'].title()}", inline=True)
             moderator = self.info["created_by"]
 
         if moderator in self.parent.ignored_mods:
@@ -122,9 +122,10 @@ class Parser:
         self.embed_text = "\n"
         if d.get("title", None) is not None:
             self.embed_text += f"**{d['title']}**"
-        self.embed_text += f" **|** **Moderator:** {d['fields'][1]['value']}"
+        self.embed_text += f" **||** **Channel:** {d['fields'][0]['value']}"
+        self.embed_text += f" **||** **Moderator:** {d['fields'][1]['value']}"
         if d.get("description", None) is not None:
-            self.embed_text += f" **|** [Viewercard](<{d['description'].split('(', 1)[1][:-1]}>)\n"
+            self.embed_text += f" **||** {d['description']}\n"
         else:
             self.embed_text += "\n"
         self.embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
@@ -184,7 +185,7 @@ class Parser:
     async def raid(self):
         await self.set_chatroom_attrs()
         self.embed.add_field(
-            name="Raided Channel", value=f"[{self.info['args'][0]}](https://www.twitch.tv/{self.info['args'][0]})", inline=True)
+            name="Raided Channel", value=f"[{self.info['args'][0]}](<https://www.twitch.tv/{self.info['args'][0]}>)", inline=True)
 
     async def unraid(self):
         return await self.set_chatroom_attrs()
