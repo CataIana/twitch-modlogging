@@ -128,10 +128,6 @@ class Parser:
         else:
             self.embed_text += "\n"
         self.embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
-        if len(d['fields'][2:]) > 0:
-            self.embed_text += "\n᲼"
-        else:
-            self.embed_text += "᲼"
 
     async def approve_unban_request(self):
         self.embed.colour = 0x00FF00
