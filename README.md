@@ -1,6 +1,7 @@
 # Twitch mod logging with Python
 
 Figuring out how to do this was a pain, and there was nothing good on the internet that I could find, so I might as well give it out to anyone who might want it.
+Thanks for phoenpc for help with design choices and being the test subject
 
 ### Installation
 
