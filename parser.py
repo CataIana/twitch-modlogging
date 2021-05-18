@@ -273,8 +273,7 @@ class Parser:
             name="From Automod", value=f"`{self.info['from_automod']}`", inline=False)
         if self.info["expires_at"] != "":
             d = datetime.strptime(self.info["expires_at"][:-4] + "Z", "%Y-%m-%dT%H:%M:%S.%fZ")
-            unix = float(d.timestamp())
-            epoch = time() - unix
+            epoch = d.timestamp() - datetime.utcnow().timestamp()
             days = int(str(epoch // 86400).split('.')[0])
             hours = int(str(epoch // 3600 % 24).split('.')[0])
             minutes = int(str(epoch // 60 % 60).split('.')[0])
