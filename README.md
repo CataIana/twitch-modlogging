@@ -1,15 +1,16 @@
 # Twitch mod logging with Python
 
 Figuring out how to do this was a pain, and there was nothing good on the internet that I could find, so I might as well give it out to anyone who might want it.
-Thanks for phoenpc for help with design choices and being the test subject
+
+Thanks to phoenpc for help with design choices and being the test subject
 
 ### Installation
 
 * Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
 
-* Only versions Python 3.6 and above are supported.
+* Python 3.6 and up supported only.
 
-* Install the required dependencies `cd twitch-modlogging && sudo pip3 install --upgrade -r requirements.txt` on linux. Replace `sudo pip3` with `pip` on windows, make sure your terminal has administrator privilages
+* Install the required dependencies `cd twitch-modlogging && sudo pip3 install --upgrade -r requirements.txt` on linux. On windows run cmd as admin and run `pip install --upgrade -r requirements.txt`
 
 * Copy `examplesettings.json` to `settings.json`
 
