@@ -101,11 +101,11 @@ class Parser:
                 moderator = None
             else:
                 self.embed.add_field(
-                    name="Moderator", value=f"{self.info['created_by_login'].title()}", inline=True)
+                    name="Moderator", value=f"{self.info['created_by_login']}", inline=True)
                 moderator = self.info["created_by_login"]
         else:
             self.embed.add_field(
-                name="Moderator", value=f"{self.info['created_by'].title()}", inline=True)
+                name="Moderator", value=f"{self.info['created_by']}", inline=True)
             moderator = self.info["created_by"]
 
         if moderator in self.parent.ignored_mods:
