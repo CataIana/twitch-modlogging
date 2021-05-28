@@ -20,14 +20,20 @@ import logging
 
 
 class Streamer:
-    def __init__(self, username, display_name, icon, webhook_urls):
+    def __init__(self, username, display_name, icon, webhook_urls, automod=False):
         self.username = username
+        self.user = username
         self.display_name = display_name
         self.icon = icon
         self.webhook_urls = webhook_urls
+        self.automod = automod
+        self.enable_automod = automod
 
     def __str__(self):
         return self.username
+
+class ConfigError(Exception):
+    pass
 
 
 class PubSubLogging:
@@ -53,16 +59,16 @@ class PubSubLogging:
             with open("settings.json") as f:
                 channels = json.load(f)
         except FileNotFoundError:
-            raise TypeError("Unable to locate settings file!")
+            raise ConfigError("Unable to locate settings file!")
         if "authorization" not in channels.keys():
-            raise TypeError("Authorization not provided")
+            raise ConfigError("Authorization not provided")
         try:  # Get authorization data
             uid = str(channels["authorization"]["id"])
             auth_token = channels["authorization"]["auth_token"].split("oauth:", 1)[-1]
             client_id = channels["authorization"]["client_id"]
             del channels["authorization"]
         except KeyError:
-            raise TypeError("Unable to fetch user ID and Authorization Token!")
+            raise ConfigError("Unable to fetch user ID and Authorization Token!")
 
         self.use_embeds = channels["_config"].get("use_embeds", True)
         self.ignored_mods = channels["_config"].get("ignored_moderators", [])
@@ -74,19 +80,35 @@ class PubSubLogging:
             response = get(url=f"https://api.twitch.tv/kraken/users?login={','.join(channels.keys())}", headers={
                 "Accept": "application/vnd.twitchtv.v5+json", "Client-ID": client_id})
             json_obj = json.loads(response.content.decode())
-            for user in json_obj["users"]:
-                self._streamers[user['_id']] = Streamer(
-                    user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=channels[user["name"]])
+            for user in json_obj["users"]: 
+                if type(channels[user["name"]]) == list: #If settings file is the old configuration
+                    webhooks = channels[user["name"]]
+                    self._streamers[user['_id']] = Streamer(
+                        user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=webhooks)
+                else:
+                    webhooks = channels[user["name"]]["webhooks"]
+                    enable_automod = channels[user["name"]]["enable_automod"]
+                    self._streamers[user['_id']] = Streamer(
+                        user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=webhooks, automod=enable_automod)
         except KeyError:
-            raise TypeError(
-                "Error during initialization. Check your client id and settings file!")
+            raise ConfigError("Error during initialization. Check your client id and settings file!")
 
         self.logging.info(
-            f"Listening for chat moderation actions for streamers {', '.join(channels.keys())}")
+            f"Listening for chat moderation actions for: {', '.join(channels.keys())}")
 
         # Create the subscription message to be sent when connecting/reconnecting
-        topics = [f"chat_moderator_actions.{uid}.{c_id}" for c_id in list(
-            self._streamers.keys())]
+        topics = []
+        using_automod = [] #Purely for the logging message
+        for c_id in list(self._streamers.keys()):
+            topics.append(f"chat_moderator_actions.{uid}.{c_id}")
+            if self._streamers[c_id].automod: #Subscribe to automod topics if enabled.
+                topics.append(f"automod-queue.{uid}.{c_id}")
+                #topics.append(f"user-moderation-notifications.{uid}.{c_id}")
+                using_automod.append(self._streamers[c_id].username)
+        if using_automod != []:
+            self.logging.info(f"Listening for automod actions for: {', '.join(using_automod)}")
+        if len(topics) > 50:
+            raise ConfigError("You have too many topics! Limit of 50 topics (Mod actions count for 1, automod counts for 1 more)")
         self.subscribe_message = {"type": "LISTEN", "nonce": str(uuid.uuid1().hex), "data": {
             "topics": topics, "auth_token": auth_token}}
 

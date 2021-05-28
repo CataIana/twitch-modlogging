@@ -4,6 +4,12 @@ Figuring out how to do this was a pain, and there was nothing good on the intern
 
 Thanks to phoenpc for help with design choices and being the test subject
 
+### The looks:
+
+Top is with embeds disabled, and bottom enabled
+
+![How logs look](https://i.catalana.dev/modlogging/thelooks.png)
+
 ### Installation
 
 * Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
@@ -29,7 +35,7 @@ Thanks to phoenpc for help with design choices and being the test subject
 * Then put the user ID in the "id" key that will be used for getting logs. If you do not know this, run the python file `get_userid.py` included in this repo. You will need to enter the same client ID used above in this program.
 ![Getting user ID](https://i.catalana.dev/modlogging/getuserid.png)
 
-* Then you will need to authorize the Application to access your account. If the authorized user does not have mod privileges for the streamer you wish to log for, no mod actions will be recieved. In this URL `https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=channel:moderate` replace `CLIENT_ID` with your Client ID. If you have your own redirect URI, replace `https://twitchapps.com/tmi/` with your own. Upon authorizing with your twitch account, you will be redirected and shown an authorization token. Keep this safe and do not share it. You can always revoke access [here](https://www.twitch.tv/settings/connections) and authorize again for a new token. Copy that token into the "auth_token" key in the settings file. Removing `oauth:` from the beginning is optional
+* Then you will need to authorize the Application to access your account. If the authorized user does not have mod privileges for the streamer you wish to log for, no mod actions will be recieved. In this URL `https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=channel:moderate+chat:read` replace `CLIENT_ID` with your Client ID. If you have your own redirect URI, replace `https://twitchapps.com/tmi/` with your own. Upon authorizing with your twitch account, you will be redirected and shown an authorization token. Keep this safe and do not share it. You can always revoke access [here](https://www.twitch.tv/settings/connections) and authorize again for a new token. Copy that token into the "auth_token" key in the settings file. Removing `oauth:` from the beginning is optional
 ![Getting auth token 1](https://i.catalana.dev/modlogging/getauthtoken1.png)
 ![Getting auth token 2](https://i.catalana.dev/modlogging/getauthtoken2.png)
 

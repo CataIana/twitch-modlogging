@@ -8,11 +8,17 @@
         "use_embeds": true,
         "ignored_moderators": []
     },
-    "somestreamername": [
-        "https://discord.com/api/webhooks/whatever",
-        "https://discord.com/api/webhooks/whatever"
-    ],
-    "someotherstreamername": [
-        "https://discord.com/api/webhooks/whatever"
-    ]
+    "somestreamername": {
+        "enable_automod": false,
+        "webhooks": [
+            "https://discord.com/api/webhooks/whatever",
+            "https://discord.com/api/webhooks/whatever"
+        ]
+    },
+    "someotherstreamername": {
+        "enable_automod": false,
+        "webhooks": [
+            "https://discord.com/api/webhooks/whatever"
+        ]
+    }
 }
