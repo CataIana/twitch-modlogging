@@ -7,13 +7,17 @@ Thanks to phoenpc for help with design choices and being the test subject
 
 ### Current Issues
 
-* Unmodding and Unviping do not send a message when the command is run via the native twitch chat. They will send a message when the command is sent through an IRC Client such as Chatty
+* Unmodding and Unviping do not send a message when the command is run in the native twitch chat. They will send a message when the command is sent through an IRC Client such as Chatty
 
 ### The looks:
 
 Top is with embeds disabled, and bottom enabled
 
 ![How logs look](https://i.catalana.dev/modlogging/thelooks.png)
+
+#### Extra notes
+
+* If there are a large number of mod actions in a small time frame (when a nuke happens or similar), the webhook will be throttled and will take some time to catch up.
 
 ### Installation
 
@@ -52,11 +56,13 @@ Top is with embeds disabled, and bottom enabled
 
 * Now you can configure which streamer/s mod actions you want to listen for. Each streamer allows a list of webhooks if you want to send each mod action to multiple webhooks. For more information on creating webhooks, see [here](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 
+* You may also enable automod logging for streamers that use automod, enter which moderators you want to ignore (or choose to leave empty) and decide whether you want to use embeds for logging. Example images are provided at the top of this readme
+
 * Now you can start up the bot and it will listen and post mod actions in your discord servers.
 * The output should look like this:
 
 ![script running](https://i.catalana.dev/modlogging/running.png)
 
-* I personally run this on linux using a systemd service. I highly recommend following a similar approach. For setting up such approach, check out [this](https://tecadmin.net/setup-autorun-python-script-using-systemd/)
+* I personally run this on linux using a systemd service. I highly recommend following a similar approach. For help setting up such approach, check out [this](https://tecadmin.net/setup-autorun-python-script-using-systemd/)
 
-**If there are a large number of mod actions in a small time frame (when a nuke happens or similar), the webhook will be throttled and will take some time to catch up.**
+Have a nice day :)
