@@ -39,7 +39,7 @@ class ConfigError(Exception):
 class PubSubLogging:
     def __init__(self):
         self.logging = logging.getLogger("Twitch Pubsub Logging")
-        self.logging.setLevel(logging.INFO)
+        self.logging.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
             "%(asctime)s %(levelname)s [%(module)s %(funcName)s %(lineno)d]: %(message)s", "%Y-%m-%d %I:%M:%S%p")
 
@@ -185,7 +185,7 @@ class PubSubLogging:
                 if not p.ignore_message:  # Some messages can be ignored as duplicates are recieved etc
                     await p.send(self.aioSession)
 
-        except Exception as e:
+        except Exception as e: #Catch every exception and send it to the associated streamer, if they can be gathered
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(
                 format_tb(e.__traceback__)) + f"{type(e).__name__}: {e}"
             self.logging.error(formatted_exception)

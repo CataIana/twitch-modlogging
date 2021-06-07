@@ -38,9 +38,9 @@ class Parser:
             except KeyError:
                 self.mod_action = self._message["type"]
 
-        if self.mod_action in ["delete_notification", "vip_added"]:
+        if self.mod_action in ["delete_notification", "vip"]:
             self.ignore_message = True
-        if self.mod_action == "mod" and self._message["type"] == "moderator_added":
+        if self.mod_action == "mod" and self._message["type"] != "moderator_added":
             self.ignore_message = True
 
         self._chatroom_actions = {
@@ -248,6 +248,10 @@ class Parser:
         self.embed.title = "Moderator Removed Action"
 
     async def vip(self):
+        await self.set_user_attrs()
+        self.embed.colour = self.colour.green
+
+    async def vip_added(self):
         await self.set_user_attrs()
         self.embed.colour = self.colour.green
 
