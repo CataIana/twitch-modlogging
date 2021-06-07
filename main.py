@@ -39,7 +39,7 @@ class ConfigError(Exception):
 class PubSubLogging:
     def __init__(self):
         self.logging = logging.getLogger("Twitch Pubsub Logging")
-        self.logging.setLevel(logging.DEBUG)
+        self.logging.setLevel(logging.INFO)
         formatter = logging.Formatter(
             "%(asctime)s %(levelname)s [%(module)s %(funcName)s %(lineno)d]: %(message)s", "%Y-%m-%d %I:%M:%S%p")
 

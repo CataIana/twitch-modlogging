@@ -26,21 +26,27 @@ Top is with embeds disabled, and bottom enabled
 * Copy `examplesettings.json` to `settings.json`
 
 * Go to the [twitch developer console](https://dev.twitch.tv/console) and click Register Your Application
+
 ![Registering Application](https://i.catalana.dev/modlogging/devconsole.png)
 
 * Give the application a name (make it unique). If you have a redirect URI you can put yours in, but I just used `https://twitchapps.com/tmi/` since I don't have one.
+
 ![Creating application](https://i.catalana.dev/modlogging/createapplication.png)
 
 * Finish creating your application. It will redirect you to your list of applications after creation. Find your application and click `Manage`
+
 ![Finish creating application](https://i.catalana.dev/modlogging/manageapplication.png)
 
 * Open `settings.json`. From the twitch developers website, copy the Client ID and put it into the `client_id` key.
+
 ![Getting Client ID](https://i.catalana.dev/modlogging/clientid.png)
 
 * Then put the user ID in the "id" key that will be used for getting logs. If you do not know this, run the python file `get_userid.py` included in this repo. You will need to enter the same client ID used above in this program.
+
 ![Getting user ID](https://i.catalana.dev/modlogging/getuserid.png)
 
 * Then you will need to authorize the Application to access your account. If the authorized user does not have mod privileges for the streamer you wish to log for, no mod actions will be recieved. In this URL `https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=channel:moderate+chat:read` replace `CLIENT_ID` with your Client ID. If you have your own redirect URI, replace `https://twitchapps.com/tmi/` with your own. Upon authorizing with your twitch account, you will be redirected and shown an authorization token. Keep this safe and do not share it. You can always revoke access [here](https://www.twitch.tv/settings/connections) and authorize again for a new token. Copy that token into the "auth_token" key in the settings file. Removing `oauth:` from the beginning is optional
+
 ![Getting auth token 1](https://i.catalana.dev/modlogging/getauthtoken1.png)
 ![Getting auth token 2](https://i.catalana.dev/modlogging/getauthtoken2.png)
 
@@ -48,6 +54,7 @@ Top is with embeds disabled, and bottom enabled
 
 * Now you can start up the bot and it will listen and post mod actions in your discord servers.
 * The output should look like this:
+
 ![script running](https://i.catalana.dev/modlogging/running.png)
 
 * I personally run this on linux using a systemd service. I highly recommend following a similar approach. For setting up such approach, check out [this](https://tecadmin.net/setup-autorun-python-script-using-systemd/)
