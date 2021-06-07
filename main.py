@@ -72,6 +72,10 @@ class PubSubLogging:
 
         self.use_embeds = channels["_config"].get("use_embeds", True)
         self.ignored_mods = channels["_config"].get("ignored_moderators", [])
+        if type(self.ignored_mods) == str:
+            self.ignored_mods = [self.ignored_mods]
+        if self.ignored_mods == None:
+            self.ignored_mods = []
         del channels["_config"]
 
         try:

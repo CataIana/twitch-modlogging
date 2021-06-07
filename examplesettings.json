@@ -6,7 +6,7 @@
     },
     "_config": {
         "use_embeds": true,
-        "ignored_moderators": []
+        "ignored_moderators": ["someusername", "someotherusername"]
     },
     "somestreamername": {
         "enable_automod": false,
