@@ -14,14 +14,15 @@ class Colours:
 
 
 class Parser:
-    def __init__(self, parent, data, **kwargs):
-        self.parent = parent
+    def __init__(self, parent, streamers, data, **kwargs):
+        self.logging = parent.logging
         if type(data["message"]) == str:
             self._message = json.loads(data["message"])
         else:
             self._message = data["message"]
         self.info = self._message["data"]
-        self.streamer = self.parent._streamers[data["topic"].split(".")[-1]]
+        self.streamer = streamers[data["topic"].split(".")[-1]]
+        self.ignored_mods = kwargs.get("ignored_mods", [])
         self.ignore_message = False
         self.footer_message = "Mew"
 
@@ -78,7 +79,7 @@ class Parser:
         else:
             moderator = self.info["created_by"]
 
-        if moderator in self.parent.ignored_mods:
+        if moderator in self.ignored_mods:
             self.ignore_message = True
 
         self.embed.add_field(name="Moderator", value=moderator, inline=True)
@@ -90,6 +91,7 @@ class Parser:
             self.embed.add_field(
                 name="UNKNOWN ACTION", value=f"`{self.mod_action}`", inline=False)
 
+        #Make the text version out of the embed. This is shitty, I know. Works surprisingly well though, for now...
         d = self.embed.to_dict()
         self.embed_text = "\n"
         if d.get("title", None) is not None:
@@ -103,7 +105,11 @@ class Parser:
         self.embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
 
     async def send(self, session=None):
-        session = ClientSession() or session
+        close_when_done = False
+        if session is None:
+            session = ClientSession()
+            close_when_done = True
+        session = session or ClientSession()
         webhooks = []
         for webhook in self.streamer.webhook_urls:
             webhooks.append(DiscordWebhook.from_url(
@@ -116,16 +122,20 @@ class Parser:
                 else:
                     await webhook.send(content=self.embed_text)
             except NotFound:
-                self.parent.logging.warning(f"Webhook not found for {self.streamer.username}")
-        await session.close()
+                self.logging.warning(f"Webhook not found for {self.streamer.username}")
+        if close_when_done:
+            await session.close()
+
+    #More generic functions that the specifics call
 
     async def set_user_attrs(self):
         user = self.info["target_user_login"] or self.info['args'][0]
+        user_escaped = user.lower().replace('_', '\_')
         self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
         #self.embed.description=f"[Review Viewercard for User](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()}>)"
         self.embed.color=self.colour.red
         self.embed.add_field(
-                name="Flagged Account", value=f"[{user.lower()}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()}>)", inline=True)
+                name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user_escaped}>)", inline=True)
 
     async def set_terms_attrs(self):
         self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
@@ -139,6 +149,8 @@ class Parser:
     async def set_chatroom_attrs(self):
         self.embed.title=self._chatroom_actions[self.mod_action]
         self.embed.color=self.colour.yellow
+
+    #Action type specific functions
 
     async def approve_unban_request(self):
         self.embed.colour = self.colour.green
@@ -249,14 +261,17 @@ class Parser:
 
     async def vip(self):
         await self.set_user_attrs()
+        self.embed.title = self.embed.title.replace('Vip', 'VIP')
         self.embed.colour = self.colour.green
 
     async def vip_added(self):
         await self.set_user_attrs()
+        self.embed.title = self.embed.title.replace('Vip', 'VIP')
         self.embed.colour = self.colour.green
 
     async def unvip(self):
-        return await self.set_user_attrs()
+        await self.set_user_attrs()
+        self.embed.title = self.embed.title.replace('Unvip', 'UnVIP')
 
     async def add_permitted_term(self):
         await self.set_terms_attrs()
@@ -308,10 +323,11 @@ class Parser:
 
     async def automod_caught_message(self):
         user = self.info["message"]["sender"]["login"]
+        user_escaped = user.lower().replace('_', '\_')
         self.embed.title=f"{self.mod_action.replace('_', ' ').title()}"
         self.embed.color=self.colour.red
         self.embed.add_field(
-            name="Flagged Account", value=f"[{user.lower()}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()}>)", inline=True)
+            name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user_escaped}>)", inline=True)
         self.embed.add_field(
             name="Content Classification", value=f"{self.info['content_classification']['category'].title()} level {self.info['content_classification']['level']}", inline=True)
         text_fragments = []
