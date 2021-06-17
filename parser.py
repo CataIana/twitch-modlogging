@@ -73,11 +73,11 @@ class Parser:
                 if self.info.get("resolver_login", "") == "":
                     moderator = "NONE"
                 else:
-                    moderator = self.info["resolver_login"]
+                    moderator = self.info["resolver_login"].replace('_', '\_')
             else:
-                moderator = self.info["created_by_login"]
+                moderator = self.info["created_by_login"].replace('_', '\_')
         else:
-            moderator = self.info["created_by"]
+            moderator = self.info["created_by"].replace('_', '\_')
 
         if moderator in self.ignored_mods:
             self.ignore_message = True
