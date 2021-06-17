@@ -131,7 +131,7 @@ class PubSubLogging:
                         await asyncio.sleep(120)
                     else:
                         await asyncio.sleep(2**failed_attempts)
-                    failed_attempts += 1
+                    failed_attempts += 1 # Continue to back off exponentially with every failed connection attempt up to 2 minutes
                     self.logging.warning(
                         f"{failed_attempts} failed attempts to connect.")
                 else:
@@ -176,7 +176,7 @@ class PubSubLogging:
             # Client sends the pings, nothing to be done when the server responds
             elif json_message["type"] == "PONG":
                 self.logging.debug("Pong!")
-            # Twitch sends this message when it wants the client to reconnect.
+            # Twitch sends this message when it wants the client to reconnect, so we force disconnect.
             elif json_message["type"] == "RECONNECT":
                 self.logging.warning("Reconnecting...")
                 await asyncio.sleep(5)

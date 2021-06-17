@@ -6,6 +6,7 @@ from discord import NotFound
 from datetime import datetime
 import json
 
+
 class Colours:
     def __init__(self):
         self.red = 0xE74C3C
@@ -27,11 +28,10 @@ class Parser:
         self.footer_message = "Mew"
 
         self.colour = Colours()
-        
 
         self.use_embeds = kwargs.get("use_embeds", True)
 
-        try:
+        try:  # Get the moderation action that was done, different mod actions have it in different places so we have some extra lines
             self.mod_action = self.info["moderation_action"].lower()
         except KeyError:
             try:
@@ -68,7 +68,7 @@ class Parser:
         self.embed.add_field(
             name="Channel", value=f"[{self.streamer.display_name}](<https://www.twitch.tv/{self.streamer.username}>)", inline=True)  # Every embed should have the channel link
 
-        if self.info.get("created_by", "") == "": #Try get who performed the action
+        if self.info.get("created_by", "") == "":  # Try get who performed the action
             if self.info.get("created_by_login", "") == "":
                 if self.info.get("resolver_login", "") == "":
                     moderator = "NONE"
@@ -91,7 +91,7 @@ class Parser:
             self.embed.add_field(
                 name="UNKNOWN ACTION", value=f"`{self.mod_action}`", inline=False)
 
-        #Make the text version out of the embed. This is shitty, I know. Works surprisingly well though, for now...
+        # Make the text version out of the embed. This is shitty, I know. Works surprisingly well though, for now...
         d = self.embed.to_dict()
         self.embed_text = "\n"
         if d.get("title", None) is not None:
@@ -122,35 +122,36 @@ class Parser:
                 else:
                     await webhook.send(content=self.embed_text)
             except NotFound:
-                self.logging.warning(f"Webhook not found for {self.streamer.username}")
+                self.logging.warning(
+                    f"Webhook not found for {self.streamer.username}")
         if close_when_done:
             await session.close()
 
-    #More generic functions that the specifics call
+    # More generic functions that the specifics call
 
     async def set_user_attrs(self):
         user = self.info["target_user_login"] or self.info['args'][0]
         user_escaped = user.lower().replace('_', '\_')
-        self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
+        self.embed.title = f"Mod {self.mod_action.replace('_', ' ').title()} Action"
         #self.embed.description=f"[Review Viewercard for User](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()}>)"
-        self.embed.color=self.colour.red
+        self.embed.color = self.colour.red
         self.embed.add_field(
-                name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user_escaped}>)", inline=True)
+            name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user_escaped}>)", inline=True)
 
     async def set_terms_attrs(self):
-        self.embed.title=f"Mod {self.mod_action.replace('_', ' ').title()} Action"
-        self.embed.color=self.colour.red
+        self.embed.title = f"Mod {self.mod_action.replace('_', ' ').title()} Action"
+        self.embed.color = self.colour.red
 
     async def set_appeals_attrs(self):
         await self.set_user_attrs()
         self.embed.add_field(
-                name="Moderator Reason", value=f"{self.info['moderator_message'] if self.info['moderator_message'] != '' else 'NONE'}", inline=False)
+            name="Moderator Reason", value=f"{self.info['moderator_message'] if self.info['moderator_message'] != '' else 'NONE'}", inline=False)
 
     async def set_chatroom_attrs(self):
-        self.embed.title=self._chatroom_actions[self.mod_action]
-        self.embed.color=self.colour.yellow
+        self.embed.title = self._chatroom_actions[self.mod_action]
+        self.embed.color = self.colour.yellow
 
-    #Action type specific functions
+    # Action type specific functions that are fetched using getattr()
 
     async def approve_unban_request(self):
         self.embed.colour = self.colour.green
@@ -191,7 +192,7 @@ class Parser:
     async def followers(self):
         await self.set_chatroom_attrs()
         self.embed.add_field(
-            name="Time Needed to be Following (minutes)", value=f"`{self.info['args'][0]}`", inline=True)
+            name=f"Time Needed to be Following (minute{'' if int(self.info['args'][0]) == 1 else 's'})", value=f"`{self.info['args'][0]}`", inline=True)
 
     async def followersoff(self):
         return await self.set_chatroom_attrs()
@@ -252,7 +253,7 @@ class Parser:
 
     async def mod(self):
         await self.set_user_attrs()
-        self.embed.title = "Moderator Added Action"
+        self.embed.title = "Moderator Added Action" #Use a custom title for adding/removing mods for looks
         self.embed.colour = self.colour.green
 
     async def unmod(self):
@@ -261,7 +262,7 @@ class Parser:
 
     async def vip(self):
         await self.set_user_attrs()
-        self.embed.title = self.embed.title.replace('Vip', 'VIP')
+        self.embed.title = self.embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
         self.embed.colour = self.colour.green
 
     async def vip_added(self):
@@ -283,7 +284,8 @@ class Parser:
         self.embed.add_field(
             name="From Automod", value=f"`{self.info['from_automod']}`", inline=False)
         if self.info["expires_at"] != "":
-            d = datetime.strptime(self.info["expires_at"][:-4] + "Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+            d = datetime.strptime(
+                self.info["expires_at"][:-4] + "Z", "%Y-%m-%dT%H:%M:%S.%fZ")
             epoch = d.timestamp()+1 - datetime.utcnow().timestamp()
             days = int(str(epoch // 86400).split('.')[0])
             hours = int(str(epoch // 3600 % 24).split('.')[0])
@@ -324,8 +326,8 @@ class Parser:
     async def automod_caught_message(self):
         user = self.info["message"]["sender"]["login"]
         user_escaped = user.lower().replace('_', '\_')
-        self.embed.title=f"{self.mod_action.replace('_', ' ').title()}"
-        self.embed.color=self.colour.red
+        self.embed.title = f"{self.mod_action.replace('_', ' ').title()}"
+        self.embed.color = self.colour.red
         self.embed.add_field(
             name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user_escaped}>)", inline=True)
         self.embed.add_field(
@@ -340,9 +342,10 @@ class Parser:
                 if fragment.get("text", None) is not None:
                     text_fragments.append(fragment.get("text", None))
 
-                
-        self.embed.add_field(name="Text fragments", value=f"`{', '.join(text_fragments).strip(', ')}`")
-        self.embed.add_field(name="Topics", value=f"`{', '.join(topics).strip(', ')}`")
+        self.embed.add_field(name="Text fragments",
+                             value=f"`{', '.join(text_fragments).strip(', ')}`")
+        self.embed.add_field(
+            name="Topics", value=f"`{', '.join(topics).strip(', ')}`")
         if self.info["status"] != "PENDING":
             self.embed.title = self.embed.title.replace("Caught", self.info["status"].title())
         if self.info["status"] == "ALLOWED":
