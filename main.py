@@ -20,7 +20,7 @@ import logging
 
 
 class Streamer:
-    def __init__(self, username, display_name, icon, webhook_urls, automod=False):
+    def __init__(self, username, display_name, icon, webhook_urls, automod=False, whitelist=[]):
         self.username = username
         self.user = username
         self.display_name = display_name
@@ -28,6 +28,7 @@ class Streamer:
         self.webhook_urls = webhook_urls
         self.automod = automod
         self.enable_automod = automod
+        self.action_whitelist = whitelist
 
     def __str__(self):
         return self.username
@@ -85,15 +86,16 @@ class PubSubLogging:
                 "Accept": "application/vnd.twitchtv.v5+json", "Client-ID": client_id})
             json_obj = json.loads(response.content.decode())
             for user in json_obj["users"]: 
-                if type(channels[user["name"]]) == list: #If settings file is the old configuration
+                if type(channels[user["name"]]) == list: #If settings file is the old configuration.
                     webhooks = channels[user["name"]]
                     self._streamers[user['_id']] = Streamer(
                         user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=webhooks)
                 else:
                     webhooks = channels[user["name"]]["webhooks"]
-                    enable_automod = channels[user["name"]]["enable_automod"]
+                    enable_automod = channels[user["name"]].get("enable_automod", False)
+                    mod_action_whitelist = channels[user["name"]].get("mod_action_whitelist", [])
                     self._streamers[user['_id']] = Streamer(
-                        user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=webhooks, automod=enable_automod)
+                        user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=webhooks, automod=enable_automod, whitelist=mod_action_whitelist)
         except KeyError:
             raise ConfigError("Error during initialization. Check your client id and settings file!")
 

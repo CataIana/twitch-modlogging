@@ -44,6 +44,9 @@ class Parser:
         if self.mod_action == "mod" and self._message["type"] != "moderator_added":
             self.ignore_message = True
 
+        if self.mod_action not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
+            self.ignore_message = True
+
         self._chatroom_actions = {
             "slow": "Slow Chat Mode Enabled",
             "slowoff": "Slow Chat Mode Disabled",

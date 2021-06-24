@@ -17,7 +17,7 @@ Top is with embeds disabled, and bottom enabled
 
 #### Extra notes
 
-* If there are a large number of mod actions in a small time frame (when a nuke happens or similar), the webhook will be throttled and will take some time to catch up.
+* If there are a large number of mod actions in a small time frame (when a nuke happens or similar), the webhook will be throttled and will take some time to catch up. Not all mod actions may be posted if this occurs
 
 ### Installation
 
@@ -56,7 +56,7 @@ Top is with embeds disabled, and bottom enabled
 
 * Now you can configure which streamer/s mod actions you want to listen for. Each streamer allows a list of webhooks if you want to send each mod action to multiple webhooks. For more information on creating webhooks, see [here](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 
-* You may also enable automod logging for streamers that use automod, enter which moderators you want to ignore (or choose to leave empty) and decide whether you want to use embeds for logging. Example images are provided at the top of this readme
+* Config options that can be setup now: Toggling automod, moderator ignoring, toggling embeds, configuring moderation action whitelisting. All of these are optional
 
 * Now you can start up the bot and it will listen and post mod actions in your discord servers.
 * The output should look like this:
