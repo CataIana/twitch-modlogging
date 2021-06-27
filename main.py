@@ -186,7 +186,7 @@ class PubSubLogging:
                 await self.connection.close()
             elif json_message["type"] == "MESSAGE":
                 # Data parser, along with all the switches for various mod actions
-                p = Parser(self, self._streamers, json_message["data"], use_embeds=self.use_embeds, ignored_mods=self.ignored_mods)
+                p = Parser(self._streamers, json_message["data"], use_embeds=self.use_embeds, ignored_mods=self.ignored_mods)
                 await p.create_message()
                 if not p.ignore_message:  # Some messages can be ignored as duplicates are recieved etc
                     await p.send(session=self.aioSession)
@@ -222,6 +222,6 @@ class PubSubLogging:
                 except NotFound:
                     self.logging.error(f"Webhook not found for {streamer}")
 
-
-p = PubSubLogging()
-p.run()
+if __name__ == "__main__":
+    p = PubSubLogging()
+    p.run()

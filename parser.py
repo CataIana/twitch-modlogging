@@ -5,6 +5,7 @@ from aiohttp import ClientSession
 from discord import NotFound
 from datetime import datetime
 import json
+import logging
 
 
 class Colours:
@@ -15,8 +16,8 @@ class Colours:
 
 
 class Parser:
-    def __init__(self, parent, streamers, data, **kwargs):
-        self.logging = parent.logging
+    def __init__(self, streamers, data, **kwargs):
+        self.logging = logging.getLogger("Twitch Pubsub Logging")
         if type(data["message"]) == str:
             self._message = json.loads(data["message"])
         else:
