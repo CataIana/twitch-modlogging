@@ -8,6 +8,6 @@ User Moderation Actions: `timeout, untimeout, delete, mod, unmod, vip_added, unv
 
 Channel Term Actions: `add_permitted_term, add_blocked_term, delete_permitted_term, delete_blocked_term`
 
-Automod: `automod_caught_message`
+Automod: `automod_caught_message, automod_allowed_message, automod_denied_message`
 
 Unban Requests: `approve_unban_request, deny_unban_request`

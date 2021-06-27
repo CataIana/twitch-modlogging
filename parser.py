@@ -40,12 +40,7 @@ class Parser:
             except KeyError:
                 self.mod_action = self._message["type"]
 
-        if self.mod_action in ["delete_notification", "vip"]:
-            self.ignore_message = True
-        if self.mod_action == "mod" and self._message["type"] != "moderator_added":
-            self.ignore_message = True
-
-        if self.mod_action not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
+        if self.mod_action not in self.streamer.action_whitelist and self.streamer.action_whitelist != [] and self.mod_action != "automod_caught_message": #Automod ignoring handled seperately
             self.ignore_message = True
 
         self._chatroom_actions = {
@@ -246,6 +241,7 @@ class Parser:
         return await self.set_user_attrs()
 
     async def delete_notification(self):
+        self.ignore_message = True
         return await self.set_user_attrs()
 
     async def delete(self):
@@ -256,6 +252,8 @@ class Parser:
         #     name="Message ID", value=f"`{self.info['args'][2]}`", inline=False)
 
     async def mod(self):
+        if self.mod_action == "mod" and self._message["type"] != "moderator_added":
+            self.ignore_message = True
         await self.set_user_attrs()
         self.embed.title = "Moderator Added Action" #Use a custom title for adding/removing mods for looks
         self.embed.colour = self.colour.green
@@ -265,6 +263,7 @@ class Parser:
         self.embed.title = "Moderator Removed Action"
 
     async def vip(self):
+        self.ignore_message = True
         await self.set_user_attrs()
         self.embed.title = self.embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
         self.embed.colour = self.colour.green
@@ -350,11 +349,20 @@ class Parser:
                              value=f"`{', '.join(text_fragments).strip(', ')}`")
         self.embed.add_field(
             name="Topics", value=f"`{', '.join(topics).strip(', ')}`")
-        if self.info["status"] != "PENDING":
-            self.embed.title = self.embed.title.replace("Caught", self.info["status"].title())
-        if self.info["status"] == "ALLOWED":
+        if self.info["status"] == "PENDING":
+            self.embed.colour = self.colour.yellow
+            if "automod_caught_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
+                self.ignore_message = True
+        elif self.info["status"] == "ALLOWED":
+            if "automod_allowed_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
+                self.ignore_message = True
             self.embed.colour = self.colour.green
         elif self.info["status"] == "DENIED":
+            if "automod_denied_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
+                self.ignore_message = True
             self.embed.colour = self.colour.red
         else:
-            self.embed.colour = self.colour.yellow
+            if "automod_caught_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
+                self.ignore_message = True
+        if self.info["status"] != "PENDING":
+            self.embed.title = self.embed.title.replace("Caught", self.info["status"].title())
