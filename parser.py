@@ -2,7 +2,7 @@ from discord import Embed as DiscordEmbed
 from discord import Webhook as DiscordWebhook
 from discord import AsyncWebhookAdapter
 from aiohttp import ClientSession
-from discord import NotFound
+from discord import NotFound, HTTPException
 from datetime import datetime
 import json
 import logging
@@ -123,6 +123,8 @@ class Parser:
             except NotFound:
                 self.logging.warning(
                     f"Webhook not found for {self.streamer.username}")
+            except HTTPException as e:
+                self.logging.error(f"HTTP Exception sending webhook: {e}")
         if close_when_done:
             await session.close()
 

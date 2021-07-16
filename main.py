@@ -10,7 +10,7 @@ import sys
 from random import uniform
 from traceback import format_tb
 from datetime import datetime
-from discord import NotFound
+from discord import NotFound, HTTPException
 from discord import Webhook as DiscordWebhook
 from discord import Embed as DiscordEmbed
 from discord import AsyncWebhookAdapter
@@ -82,20 +82,19 @@ class PubSubLogging:
         try:
             # Get information of each defined streamer, such as ID, icon, and display name
             self._streamers = {}
-            response = get(url=f"https://api.twitch.tv/kraken/users?login={','.join(channels.keys())}", headers={
-                "Accept": "application/vnd.twitchtv.v5+json", "Client-ID": client_id})
+            response = get(url=f"https://api.twitch.tv/helix/users?login={'&login='.join([channel for channel in channels.keys() if not channel.startswith('_')])}", headers={"Client-ID": client_id, "Authorization": f"Bearer {auth_token}"})
             json_obj = json.loads(response.content.decode())
-            for user in json_obj["users"]: 
-                if type(channels[user["name"]]) == list: #If settings file is the old configuration.
-                    webhooks = channels[user["name"]]
-                    self._streamers[user['_id']] = Streamer(
-                        user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=webhooks)
+            for user in json_obj["data"]: 
+                if type(channels[user["login"]]) == list: #If settings file is the old configuration.
+                    webhooks = channels[user["login"]]
+                    self._streamers[user['id']] = Streamer(
+                        user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks)
                 else:
-                    webhooks = channels[user["name"]]["webhooks"]
-                    enable_automod = channels[user["name"]].get("enable_automod", False)
-                    mod_action_whitelist = channels[user["name"]].get("mod_action_whitelist", [])
-                    self._streamers[user['_id']] = Streamer(
-                        user["name"], display_name=user["display_name"], icon=user["logo"], webhook_urls=webhooks, automod=enable_automod, whitelist=mod_action_whitelist)
+                    webhooks = channels[user["login"]]["webhooks"]
+                    enable_automod = channels[user["login"]].get("enable_automod", False)
+                    mod_action_whitelist = channels[user["login"]].get("mod_action_whitelist", [])
+                    self._streamers[user['id']] = Streamer(
+                        user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks, automod=enable_automod, whitelist=mod_action_whitelist)
         except KeyError:
             raise ConfigError("Error during initialization. Check your client id and settings file!")
 
@@ -221,6 +220,8 @@ class PubSubLogging:
                     await webhook.send(embed=embed)
                 except NotFound:
                     self.logging.error(f"Webhook not found for {streamer}")
+                except HTTPException as e:
+                    self.logging.error(f"HTTP Exception sending webhook: {e}")
 
 if __name__ == "__main__":
     p = PubSubLogging()
