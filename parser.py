@@ -220,8 +220,12 @@ class Parser:
             self.embed.add_field(
                 name="Flag Reason", value=f"`None Provided`", inline=False)
         else:
-            self.embed.add_field(
-                name="Flag Reason", value=f"`{self.info['args'][2]}`", inline=False)
+            if "`" in self.info["args"][2]:
+                self.embed.add_field(
+                    name="Flag Reason", value=f"```{self.info['args'][2]}```", inline=False)
+            else:
+                self.embed.add_field(
+                    name="Flag Reason", value=f"`{self.info['args'][2]}`", inline=False)
 
         self.embed.add_field(
             name="Duration", value=f"{self.info['args'][1]} second{'' if int(self.info['args'][1]) == 1 else 's'}", inline=False)
@@ -235,8 +239,12 @@ class Parser:
             self.embed.add_field(
                 name="Flag Reason", value=f"`None Provided`", inline=False)
         else:
-            self.embed.add_field(
-                name="Flag Reason", value=f"`{self.info['args'][1]}`", inline=False)
+            if "`" in self.info["args"][1]:
+                self.embed.add_field(
+                    name="Flag Reason", value=f"```{self.info['args'][1]}```", inline=False)
+            else:
+                self.embed.add_field(
+                    name="Flag Reason", value=f"`{self.info['args'][1]}`", inline=False)
 
     async def unban(self):
         self.embed.colour = self.colour.green
@@ -248,8 +256,12 @@ class Parser:
 
     async def delete(self):
         await self.set_user_attrs()
-        self.embed.add_field(
-            name="Message", value=f"`{self.info['args'][1]}`", inline=False)
+        if "`" in self.info['args'][1]:
+            self.embed.add_field(
+                name="Message", value=f"```{self.info['args'][1]}```", inline=False)
+        else:
+            self.embed.add_field(
+                name="Message", value=f"`{self.info['args'][1]}`", inline=False)
         # self.embed.add_field(
         #     name="Message ID", value=f"`{self.info['args'][2]}`", inline=False)
 
@@ -284,8 +296,12 @@ class Parser:
         self.embed.colour = self.colour.green
         self.embed.add_field(
             name="Added by", value=f"{self.info['requester_login']}", inline=True)
-        self.embed.add_field(
-            name="Value", value=f"`{self.info['text']}`", inline=False)
+        if "`" in self.info["text"]:
+            self.embed.add_field(
+                name="Value", value=f"```{self.info['text']}```", inline=False)
+        else:
+            self.embed.add_field(
+                name="Value", value=f"`{self.info['text']}`", inline=False)
         self.embed.add_field(
             name="From Automod", value=f"`{self.info['from_automod']}`", inline=False)
         if self.info["expires_at"] != "":
@@ -321,8 +337,12 @@ class Parser:
         await self.set_terms_attrs()
         self.embed.add_field(
             name="Removed by", value=f"{self.info['requester_login']}", inline=True)
-        self.embed.add_field(
-            name="Value", value=f"`{self.info['text']}`", inline=False)
+        if "`" in self.info["text"]:
+            self.embed.add_field(
+                name="Value", value=f"```{self.info['text']}```", inline=False)
+        else:
+            self.embed.add_field(
+                name="Value", value=f"`{self.info['text']}`", inline=False)
         self.embed.remove_field(1)
 
     async def delete_blocked_term(self):
