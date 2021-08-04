@@ -1,6 +1,6 @@
 from discord import Embed as DiscordEmbed
 from discord import Webhook as DiscordWebhook
-from discord import AsyncWebhookAdapter
+from discord import AsyncWebhookAdapter, AllowedMentions
 from aiohttp import ClientSession
 from discord import NotFound, HTTPException
 from datetime import datetime
@@ -117,9 +117,9 @@ class Parser:
         for webhook in webhooks:
             try:
                 if self.use_embeds:
-                    await webhook.send(embed=self.embed)
+                    await webhook.send(embed=self.embed, allowed_mentions=AllowedMentions.none())
                 else:
-                    await webhook.send(content=self.embed_text)
+                    await webhook.send(content=self.embed_text, allowed_mentions=AllowedMentions.none())
             except NotFound:
                 self.logging.warning(
                     f"Webhook not found for {self.streamer.username}")
