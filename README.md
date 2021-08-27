@@ -2,8 +2,6 @@
 
 Figuring out how to do this was a pain, and there was nothing good on the internet that I could find, so I might as well give it out to anyone who might want it.
 
-Thanks to phoenpc for help with design choices and being the test subject
-
 
 ### Current Issues
 
