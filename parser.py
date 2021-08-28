@@ -369,6 +369,9 @@ class Parser:
                 if fragment.get("text", None) is not None:
                     text_fragments.append(fragment.get("text", None))
 
+        text_fragments = list(dict.fromkeys(text_fragments)) #Remove duplicates from topics and text fragments, they're pointless
+        topics = list(dict.fromkeys(topics))
+
         self.embed.add_field(name="Text fragments",
                              value=f"`{', '.join(text_fragments).strip(', ')}`")
         self.embed.add_field(
