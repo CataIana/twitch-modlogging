@@ -1,8 +1,5 @@
-from discord import Embed as DiscordEmbed
-from discord import Webhook as DiscordWebhook
-from discord import AsyncWebhookAdapter, AllowedMentions
+import discord
 from aiohttp import ClientSession
-from discord import NotFound, HTTPException
 from datetime import datetime
 import json
 import logging
@@ -61,7 +58,7 @@ class Parser:
             "unraid": "Unraid Action"
         }
 
-        self.embed = DiscordEmbed(timestamp=datetime.utcnow())
+        self.embed = discord.Embed(timestamp=datetime.utcnow())
 
     async def create_message(self):
         self.embed.add_field(
@@ -111,19 +108,24 @@ class Parser:
         session = session or ClientSession()
         webhooks = []
         for webhook in self.streamer.webhook_urls:
-            webhooks.append(DiscordWebhook.from_url(
-                webhook, adapter=AsyncWebhookAdapter(session)))
+            if discord.__version__ == "2.0.0a":
+                webhooks.append(discord.Webhook.from_url(
+                    webhook, session=session))
+            else:
+                webhooks.append(discord.Webhook.from_url(
+                    webhook, adapter=discord.AsyncWebhookAdapter(session)))
+                
         self.embed.set_footer(text=self.footer_message, icon_url=self.streamer.icon)
         for webhook in webhooks:
             try:
                 if self.use_embeds:
-                    await webhook.send(embed=self.embed, allowed_mentions=AllowedMentions.none())
+                    await webhook.send(embed=self.embed, allowed_mentions=discord.AllowedMentions.none())
                 else:
-                    await webhook.send(content=self.embed_text, allowed_mentions=AllowedMentions.none())
-            except NotFound:
+                    await webhook.send(content=self.embed_text, allowed_mentions=discord.AllowedMentions.none())
+            except discord.NotFound:
                 self.logging.warning(
                     f"Webhook not found for {self.streamer.username}")
-            except HTTPException as e:
+            except discord.HTTPException as e:
                 self.logging.error(f"HTTP Exception sending webhook: {e}")
         if close_when_done:
             await session.close()

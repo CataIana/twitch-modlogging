@@ -3,19 +3,16 @@
 import asyncio
 from websockets import client as wclient
 from websockets.exceptions import ConnectionClosed
-from requests import get
+import discord
 import uuid
 import json
 import sys
+from requests import get
 from random import uniform
 from traceback import format_tb
 from datetime import datetime
-from discord import NotFound, HTTPException
-from discord import Webhook as DiscordWebhook
-from discord import Embed as DiscordEmbed
-from discord import AsyncWebhookAdapter
 from aiohttp import ClientSession
-from parser import Parser
+from messageparser import Parser
 import logging
 
 
@@ -199,7 +196,7 @@ class PubSubLogging:
                 return
             streamer_id = json.loads(str(raw_message))["data"]["topic"].split(".")[-1]
             streamer = self._streamers[streamer_id]
-            embed = DiscordEmbed(
+            embed = discord.Embed(
                 title=f"Safety Embed",
                 description=f"If you see this something went wrong with the data from Twitch, or how it is being handled.",
                 color=0x880080,
@@ -212,15 +209,19 @@ class PubSubLogging:
 
             webhooks = []
             for webhook in streamer.webhook_urls:
-                webhooks.append(DiscordWebhook.from_url(
-                    webhook, adapter=AsyncWebhookAdapter(self.aioSession)))
+                if discord.__version__ == "2.0.0a":
+                    webhooks.append(discord.Webhook.from_url(
+                        webhook, session=self.aioSession))
+                else:
+                    webhooks.append(discord.Webhook.from_url(
+                        webhook, adapter=discord.AsyncWebhookAdapter(self.aioSession)))
             embed.set_footer(text="Sad", icon_url=streamer.icon)
             for webhook in webhooks:
                 try:
                     await webhook.send(embed=embed)
-                except NotFound:
+                except discord.NotFound:
                     self.logging.error(f"Webhook not found for {streamer}")
-                except HTTPException as e:
+                except discord.HTTPException as e:
                     self.logging.error(f"HTTP Exception sending webhook: {e}")
 
 if __name__ == "__main__":
