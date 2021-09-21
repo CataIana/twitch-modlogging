@@ -1,15 +1,15 @@
 import requests
-import json
 
 client_id = input("Provide your client ID: ")
+oauth = input("Provide your oauth token: ")
+oauth = oauth.split("oauth:")[-1] #Remove the oauth: to prevent errors
 print("Input at least one USERNAME, or multiple seperated by commas without spaces")
 while True:
     username = input("Provide User ID: ")
-    response = requests.get(url=f"https://api.twitch.tv/kraken/users?login={username}", headers={"Accept": "application/vnd.twitchtv.v5+json", "Client-ID": client_id})
+    response = requests.get(url=f"https://api.twitch.tv/helix/users?login={'&login='.join(username.split(','))}", headers={"Client-ID": client_id, "Authorization": f"Bearer {oauth}"})
     json_obj = response.json()
-    if "error" in json_obj.keys():
-        print(f"Error {json_obj['error']}: {json_obj['message']}")
-        break
-    else:
-        for user in json_obj["users"]:
-            print(f"{user['name']}: {user['_id']}")
+    try:
+        for user in json_obj["data"]:
+            print(f"{user['login']}: {user['id']}")
+    except Exception:
+        print(f"Error {json_obj.get('error', None)}: {json_obj.get('message', None)}")

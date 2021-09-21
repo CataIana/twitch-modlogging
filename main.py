@@ -80,7 +80,7 @@ class PubSubLogging:
             # Get information of each defined streamer, such as ID, icon, and display name
             self._streamers = {}
             response = get(url=f"https://api.twitch.tv/helix/users?login={'&login='.join([channel for channel in channels.keys() if not channel.startswith('_')])}", headers={"Client-ID": client_id, "Authorization": f"Bearer {auth_token}"})
-            json_obj = json.loads(response.content.decode())
+            json_obj = response.json()
             for user in json_obj["data"]: 
                 if type(channels[user["login"]]) == list: #If settings file is the old configuration.
                     webhooks = channels[user["login"]]
