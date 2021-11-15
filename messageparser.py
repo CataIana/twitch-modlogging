@@ -82,10 +82,10 @@ class Parser:
 
         try:
             mod_action_func = getattr(self, self.mod_action.lower())
-            await mod_action_func()
         except AttributeError:
             self.embed.add_field(
                 name="UNKNOWN ACTION", value=f"`{self.mod_action}`", inline=False)
+        await mod_action_func()
 
         # Make the text version out of the embed. This is shitty, I know. Works surprisingly well though, for now...
         d = self.embed.to_dict()
@@ -374,8 +374,9 @@ class Parser:
         text_fragments = list(dict.fromkeys(text_fragments)) #Remove duplicates from topics and text fragments, they're pointless
         topics = list(dict.fromkeys(topics))
 
+        self.logging.info(text_fragments)
         self.embed.add_field(name="Text fragments",
-                             value=f"`{', '.join(text_fragments).strip(', ')}`")
+                             value=f"`{', '.join([f.strip(' ') for f in text_fragments]).strip(', ')}`")
         self.embed.add_field(
             name="Topics", value=f"`{', '.join(topics).strip(', ')}`")
         if self.info["status"] == "PENDING":
