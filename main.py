@@ -13,22 +13,8 @@ from traceback import format_tb
 from datetime import datetime
 from aiohttp import ClientSession
 from messageparser import Parser
+from streamer import Streamer
 import logging
-
-
-class Streamer:
-    def __init__(self, username, display_name, icon, webhook_urls, automod=False, whitelist=[]):
-        self.username = username
-        self.user = username
-        self.display_name = display_name
-        self.icon = icon
-        self.webhook_urls = webhook_urls
-        self.automod = automod
-        self.enable_automod = automod
-        self.action_whitelist = whitelist
-
-    def __str__(self):
-        return self.username
 
 class ConfigError(Exception):
     pass
@@ -68,12 +54,12 @@ class PubSubLogging:
         except KeyError:
             raise ConfigError("Unable to fetch user ID and Authorization Token!")
 
-        self.use_embeds = channels["_config"].get("use_embeds", True)
-        self.ignored_mods = channels["_config"].get("ignored_moderators", [])
-        if type(self.ignored_mods) == str:
-            self.ignored_mods = [self.ignored_mods]
-        if self.ignored_mods == None:
-            self.ignored_mods = []
+        use_embeds = channels["_config"].get("use_embeds", True)
+        ignored_mods = channels["_config"].get("ignored_moderators", [])
+        if type(ignored_mods) == str:
+            ignored_mods = [ignored_mods]
+        if ignored_mods == None:
+            ignored_mods = []
         del channels["_config"]
 
         try:
@@ -113,6 +99,10 @@ class PubSubLogging:
             raise ConfigError("You have too many topics! Limit of 50 topics (Mod actions count for 1, automod counts for 1 more)")
         self.subscribe_message = {"type": "LISTEN", "nonce": str(uuid.uuid1().hex), "data": {
             "topics": topics, "auth_token": auth_token}}
+
+        
+
+        self.parser = Parser(self._streamers, use_embeds=use_embeds, ignored_mods=ignored_mods)
 
     def run(self):
         self.loop = asyncio.get_event_loop()
@@ -182,10 +172,9 @@ class PubSubLogging:
                 await self.connection.close()
             elif json_message["type"] == "MESSAGE":
                 # Data parser, along with all the switches for various mod actions
-                p = Parser(self._streamers, json_message["data"], use_embeds=self.use_embeds, ignored_mods=self.ignored_mods)
-                await p.create_message()
-                if not p.ignore_message:  # Some messages can be ignored as duplicates are recieved etc
-                    await p.send(session=self.aioSession)
+                message = await self.parser.parse_message(json_message["data"])
+                if not message.ignore:  # Some messages can be ignored as duplicates are recieved etc
+                    await message.send(session=self.aioSession)
 
         except Exception as e: #Catch every exception and send it to the associated streamer, if they can be gathered
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(

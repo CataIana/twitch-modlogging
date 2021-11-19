@@ -1,9 +1,10 @@
 import discord
-from aiohttp import ClientSession
+import asyncio
 from datetime import datetime
+import pytz
 import json
 import logging
-
+from message import Message
 
 class Colours:
     def __init__(self):
@@ -11,35 +12,14 @@ class Colours:
         self.yellow = 0xFFBF00
         self.green = 0x2ECC71
 
-
+AUTOMOD_TIMEOUT = 180
 class Parser:
-    def __init__(self, streamers, data, **kwargs):
+    def __init__(self, streamers, **kwargs):
         self.logging = logging.getLogger("Twitch Pubsub Logging")
-        if type(data["message"]) == str:
-            self._message = json.loads(data["message"])
-        else:
-            self._message = data["message"]
-        self.info = self._message["data"]
-        self.streamer = streamers[data["topic"].split(".")[-1]]
+        self.streamers = streamers
         self.ignored_mods = kwargs.get("ignored_mods", [])
-        self.ignore_message = False
-        self.footer_message = "Mew"
-
-        self.colour = Colours()
-
         self.use_embeds = kwargs.get("use_embeds", True)
-
-        try:  # Get the moderation action that was done, different mod actions have it in different places so we have some extra lines
-            self.mod_action = self.info["moderation_action"].lower()
-        except KeyError:
-            try:
-                self.mod_action = self.info["type"]
-            except KeyError:
-                self.mod_action = self._message["type"]
-
-        if self.mod_action not in self.streamer.action_whitelist and self.streamer.action_whitelist != [] and self.mod_action != "automod_caught_message": #Automod ignoring handled seperately
-            self.ignore_message = True
-
+        self.colour = Colours()
         self._chatroom_actions = {
             "slow": "Slow Chat Mode Enabled",
             "slowoff": "Slow Chat Mode Disabled",
@@ -57,260 +37,288 @@ class Parser:
             "raid": "Raid Action",
             "unraid": "Unraid Action"
         }
+        self.automod_cache = {}
+        self.loop = asyncio.get_event_loop()
+        self.loop.create_task(self.cleanup_automod())
 
-        self.embed = discord.Embed(timestamp=datetime.utcnow())
+    async def cleanup_automod(self):
+        while True:
+            await asyncio.sleep(360)
+            count = 0
+            for id, i in dict(self.automod_cache).items():
+                if i["object"].created_at.timestamp() > datetime.utcnow().timestamp() - AUTOMOD_TIMEOUT:
+                    del self.automod_cache[id]
+                    count += 1
+            if count > 0:
+                self.logging.info(f"Cleaned up {count} unanswered events")
 
-    async def create_message(self):
-        self.embed.add_field(
-            name="Channel", value=f"[{self.streamer.display_name}](<https://www.twitch.tv/{self.streamer.username}>)", inline=True)  # Every embed should have the channel link
+    async def parse_message(self, data: dict) -> Message:
+        if type(data["message"]) == str:
+            message = json.loads(data["message"])
+        else:
+            message = data["message"]
+        info = message["data"]
+        streamer = self.streamers[data["topic"].split(".")[-1]]
+        ignore_message = False
 
-        if self.info.get("created_by", "") == "":  # Try get who performed the action
-            if self.info.get("created_by_login", "") == "":
-                if self.info.get("resolver_login", "") == "":
+        try:  # Get the moderation action that was done, different mod actions have it in different places so we have some extra lines
+            mod_action = info["moderation_action"].lower()
+        except KeyError:
+            try:
+                mod_action = info["type"]
+            except KeyError:
+                mod_action = message["type"]
+
+        if discord.__version__ == "2.0.0.a":
+            embed = discord.Embed(timestamp=discord.utils.utcnow())
+        else:
+            embed = discord.Embed(timestamp=datetime.utcnow())
+
+        embed.add_field(
+            name="Channel", value=f"[{streamer.display_name}](<https://www.twitch.tv/{streamer.username}>)", inline=True)  # Every embed should have the channel link
+
+        if info.get("created_by", "") == "":  # Try get who performed the action
+            if info.get("created_by_login", "") == "":
+                if info.get("resolver_login", "") == "":
                     moderator = "NONE"
                 else:
-                    moderator = self.info["resolver_login"].replace('_', '\_')
+                    moderator = info["resolver_login"].replace('_', '\_')
             else:
-                moderator = self.info["created_by_login"].replace('_', '\_')
+                moderator = info["created_by_login"].replace('_', '\_')
         else:
-            moderator = self.info["created_by"].replace('_', '\_')
+            moderator = info["created_by"].replace('_', '\_')
 
-        if moderator in self.ignored_mods:
-            self.ignore_message = True
-
-        self.embed.add_field(name="Moderator", value=moderator, inline=True)
+        embed.add_field(name="Moderator", value=moderator, inline=True)
 
         try:
-            mod_action_func = getattr(self, self.mod_action.lower())
+            mod_action_func = getattr(self, mod_action.lower())
         except AttributeError:
-            self.embed.add_field(
-                name="UNKNOWN ACTION", value=f"`{self.mod_action}`", inline=False)
-        await mod_action_func()
+            embed.add_field(name="UNKNOWN ACTION", value=f"`{mod_action}`", inline=False)
+        r = mod_action_func(streamer, info, mod_action, embed)
+        if type(r) == tuple:
+            embed = r[1]
+            ignore_message = r[0]
+        else:
+            embed = r
+
+        if moderator in self.ignored_mods:
+            ignore_message = True
+
+        #Ignores
+        if mod_action not in streamer.action_whitelist and streamer.action_whitelist != [] and mod_action != "automod_caught_message": #Automod ignoring handled seperately
+            ignore_message = True
+
+        if mod_action == "mod" and message["type"] != "moderator_added":
+            ignore_message = True
 
         # Make the text version out of the embed. This is shitty, I know. Works surprisingly well though, for now...
-        d = self.embed.to_dict()
-        self.embed_text = "\n"
+        d = embed.to_dict()
+        embed_text = "\n"
         if d.get("title", None) is not None:
-            self.embed_text += f"**{d['title']}**"
-        self.embed_text += f" **||** **Channel:** {d['fields'][0]['value']}"
-        self.embed_text += f" **||** **Moderator:** {d['fields'][1]['value']}"
+            embed_text += f"**{d['title']}**"
+        embed_text += f" **||** **Channel:** {d['fields'][0]['value']}"
+        embed_text += f" **||** **Moderator:** {d['fields'][1]['value']}"
         if d.get("description", None) is not None:
-            self.embed_text += f" **||** {d['description']}\n"
+            embed_text += f" **||** {d['description']}\n"
         else:
-            self.embed_text += "\n"
-        self.embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
+            embed_text += "\n"
+        embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
 
-    async def send(self, session=None):
-        close_when_done = False
-        if session is None:
-            session = ClientSession()
-            close_when_done = True
-        session = session or ClientSession()
-        webhooks = []
-        for webhook in self.streamer.webhook_urls:
-            if discord.__version__ == "2.0.0a":
-                webhooks.append(discord.Webhook.from_url(
-                    webhook, session=session))
-            else:
-                webhooks.append(discord.Webhook.from_url(
-                    webhook, adapter=discord.AsyncWebhookAdapter(session)))
-                
-        self.embed.set_footer(text=self.footer_message, icon_url=self.streamer.icon)
-        for webhook in webhooks:
-            try:
-                if self.use_embeds:
-                    await webhook.send(embed=self.embed, allowed_mentions=discord.AllowedMentions.none())
-                else:
-                    await webhook.send(content=self.embed_text, allowed_mentions=discord.AllowedMentions.none())
-            except discord.NotFound:
-                self.logging.warning(
-                    f"Webhook not found for {self.streamer.username}")
-            except discord.HTTPException as e:
-                self.logging.error(f"HTTP Exception sending webhook: {e}")
-        if close_when_done:
-            await session.close()
+        return Message(self, message, streamer, mod_action, ignore_message, embed, embed_text)
 
     # More generic functions that the specifics call
 
-    async def set_user_attrs(self):
-        user = self.info["target_user_login"] or self.info['args'][0]
+    def set_user_attrs(self, streamer, info, mod_action, embed) -> discord.Embed:
+        user = info["target_user_login"] or info['args'][0]
         user_escaped = user.lower().replace('_', '\_')
-        self.embed.title = f"Mod {self.mod_action.replace('_', ' ').title()} Action"
-        #self.embed.description=f"[Review Viewercard for User](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user.lower()}>)"
-        self.embed.color = self.colour.red
-        self.embed.add_field(
-            name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user_escaped}>)", inline=True)
+        embed.title = f"Mod {mod_action.replace('_', ' ').title()} Action"
+        #embed.description=f"[Review Viewercard for User](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user.lower()}>)"
+        embed.color = self.colour.red
+        embed.add_field(
+            name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user_escaped}>)", inline=True)
+        return embed
 
-    async def set_terms_attrs(self):
-        self.embed.title = f"Mod {self.mod_action.replace('_', ' ').title()} Action"
-        self.embed.color = self.colour.red
+    def set_terms_attrs(self, mod_action, embed) -> discord.Embed:
+        embed.title = f"Mod {mod_action.replace('_', ' ').title()} Action"
+        embed.color = self.colour.red
+        return embed
 
-    async def set_appeals_attrs(self):
-        await self.set_user_attrs()
-        self.embed.add_field(
-            name="Moderator Reason", value=f"{self.info['moderator_message'] if self.info['moderator_message'] != '' else 'NONE'}", inline=False)
+    def set_appeals_attrs(self, streamer, info, mod_action, embed) -> discord.Embed:
+        self.set_user_attrs(streamer, info, mod_action, embed)
+        embed.add_field(
+            name="Moderator Reason", value=f"{info['moderator_message'] if info['moderator_message'] != '' else 'NONE'}", inline=False)
+        return embed
 
-    async def set_chatroom_attrs(self):
-        self.embed.title = self._chatroom_actions[self.mod_action]
-        self.embed.color = self.colour.yellow
+    def set_chatroom_attrs(self, mod_action, embed) -> discord.Embed:
+        embed.title = self._chatroom_actions[mod_action]
+        embed.color = self.colour.yellow
+        return embed
 
     # Action type specific functions that are fetched using getattr()
 
-    async def approve_unban_request(self):
-        self.embed.colour = self.colour.green
-        return await self.set_appeals_attrs()
+    def approve_unban_request(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed.colour = self.colour.green
+        return self.set_appeals_attrs(streamer, info, mod_action, embed)
 
-    async def deny_unban_request(self):
-        return await self.set_appeals_attrs()
+    def deny_unban_request(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_appeals_attrs(streamer, info, mod_action, embed)
 
-    async def slow(self):
-        await self.set_chatroom_attrs()
-        self.embed.add_field(
-            name=f"Slow Amount (second{'' if int(self.info['args'][0]) == 1 else 's'})", value=f"`{self.info['args'][0]}`", inline=True)
+    def slow(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_chatroom_attrs(mod_action, embed)
+        embed.add_field(
+            name=f"Slow Amount (second{'' if int(info['args'][0]) == 1 else 's'})", value=f"`{info['args'][0]}`", inline=True)
+        return embed
 
-    async def slowoff(self):
-        return await self.set_chatroom_attrs()
+    def slowoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def r9kbeta(self):
-        return await self.set_chatroom_attrs()
+    def r9kbeta(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def r9kbetaoff(self):
-        return await self.set_chatroom_attrs()
+    def r9kbetaoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def clear(self):
-        return await self.set_chatroom_attrs()
+    def clear(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def emoteonly(self):
-        return await self.set_chatroom_attrs()
+    def emoteonly(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def emoteonlyoff(self):
-        return await self.set_chatroom_attrs()
+    def emoteonlyoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def subscribers(self):
-        return await self.set_chatroom_attrs()
+    def subscribers(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def subscribersoff(self):
-        return await self.set_chatroom_attrs()
+    def subscribersoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def followers(self):
-        await self.set_chatroom_attrs()
-        self.embed.add_field(
-            name=f"Time Needed to be Following (minute{'' if int(self.info['args'][0]) == 1 else 's'})", value=f"`{self.info['args'][0]}`", inline=True)
+    def followers(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_chatroom_attrs(mod_action, embed)
+        embed.add_field(
+            name=f"Time Needed to be Following (minute{'' if int(info['args'][0]) == 1 else 's'})", value=f"`{info['args'][0]}`", inline=True)
+        return embed
 
-    async def followersoff(self):
-        return await self.set_chatroom_attrs()
+    def followersoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def host(self):
-        await self.set_chatroom_attrs()
-        self.embed.add_field(
-            name="Hosted Channel", value=f"[{self.info['args'][0]}](<https://www.twitch.tv/{self.info['args'][0]}>)", inline=True)
+    def host(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_chatroom_attrs(mod_action, embed)
+        embed.add_field(
+            name="Hosted Channel", value=f"[{info['args'][0]}](<https://www.twitch.tv/{info['args'][0]}>)", inline=True)
+        return embed
 
-    async def unhost(self):
-        return await self.set_chatroom_attrs()
+    def unhost(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def raid(self):
-        await self.set_chatroom_attrs()
-        self.embed.add_field(
-            name="Raided Channel", value=f"[{self.info['args'][0]}](<https://www.twitch.tv/{self.info['args'][0]}>)", inline=True)
+    def raid(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_chatroom_attrs(mod_action, embed)
+        embed.add_field(
+            name="Raided Channel", value=f"[{info['args'][0]}](<https://www.twitch.tv/{info['args'][0]}>)", inline=True)
+        return embed
 
-    async def unraid(self):
-        return await self.set_chatroom_attrs()
+    def unraid(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_chatroom_attrs(mod_action, embed)
 
-    async def timeout(self):
-        await self.set_user_attrs()
-        if self.info['args'][2] == "":
-            self.embed.add_field(
+    def timeout(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        if info['args'][2] == "":
+            embed.add_field(
                 name="Flag Reason", value=f"`None Provided`")
         else:
-            if "`" in self.info["args"][2]:
-                self.embed.add_field(
-                    name="Flag Reason", value=f"```{self.info['args'][2]}```")
+            if "`" in info["args"][2]:
+                embed.add_field(
+                    name="Flag Reason", value=f"```{info['args'][2]}```")
             else:
-                self.embed.add_field(
-                    name="Flag Reason", value=f"`{self.info['args'][2]}`")
+                embed.add_field(
+                    name="Flag Reason", value=f"`{info['args'][2]}`")
 
-        self.embed.add_field(
-            name="Duration", value=f"{self.info['args'][1]} second{'' if int(self.info['args'][1]) == 1 else 's'}")        
+        embed.add_field(
+            name="Duration", value=f"{info['args'][1]} second{'' if int(info['args'][1]) == 1 else 's'}")        
 
-        #self.embed.add_field(name="\u200b", value="\u200b")
+        #embed.add_field(name="\u200b", value="\u200b")
+        return embed
 
-    async def untimeout(self):
-        return await self.set_user_attrs()
+    def untimeout(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.set_user_attrs(streamer, info, mod_action, embed)
 
-    async def ban(self):
-        await self.set_user_attrs()
-        if self.info['args'][1] == "":
-            self.embed.add_field(
+    def ban(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        if info['args'][1] == "":
+            embed.add_field(
                 name="Flag Reason", value=f"`None Provided`")
         else:
-            if "`" in self.info["args"][1]:
-                self.embed.add_field(
-                    name="Flag Reason", value=f"```{self.info['args'][1]}```")
+            if "`" in info["args"][1]:
+                embed.add_field(
+                    name="Flag Reason", value=f"```{info['args'][1]}```")
             else:
-                self.embed.add_field(
-                    name="Flag Reason", value=f"`{self.info['args'][1]}`")
+                embed.add_field(
+                    name="Flag Reason", value=f"`{info['args'][1]}`")
+        return embed
 
-    async def unban(self):
-        self.embed.colour = self.colour.green
-        return await self.set_user_attrs()
+    def unban(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed.colour = self.colour.green
+        return self.set_user_attrs(streamer, info, mod_action, embed)
 
-    async def delete_notification(self):
-        self.ignore_message = True
-        return await self.set_user_attrs()
+    def delete_notification(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return True, self.set_user_attrs(streamer, info, mod_action, embed)
 
-    async def delete(self):
-        await self.set_user_attrs()
-        if "`" in self.info['args'][1]:
-            self.embed.add_field(
-                name="Message", value=f"```{self.info['args'][1]}```")
+    def delete(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        if "`" in info['args'][1]:
+            embed.add_field(
+                name="Message", value=f"```{info['args'][1]}```")
         else:
-            self.embed.add_field(
-                name="Message", value=f"`{self.info['args'][1]}`")
-        # self.embed.add_field(
-        #     name="Message ID", value=f"`{self.info['args'][2]}`")
+            embed.add_field(
+                name="Message", value=f"`{info['args'][1]}`")
+        # embed.add_field(
+        #     name="Message ID", value=f"`{info['args'][2]}`")
+        return embed
 
-    async def mod(self):
-        if self.mod_action == "mod" and self._message["type"] != "moderator_added":
-            self.ignore_message = True
-        await self.set_user_attrs()
-        self.embed.title = "Moderator Added Action" #Use a custom title for adding/removing mods for looks
-        self.embed.colour = self.colour.green
+    def mod(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        embed.title = "Moderator Added Action" #Use a custom title for adding/removing mods for looks
+        embed.colour = self.colour.green
+        return embed
 
-    async def unmod(self):
-        await self.set_user_attrs()
-        self.embed.title = "Moderator Removed Action"
+    def unmod(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        embed.title = "Moderator Removed Action"
+        return embed
 
-    async def vip(self):
-        self.ignore_message = True
-        await self.set_user_attrs()
-        self.embed.title = self.embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
-        self.embed.colour = self.colour.green
+    def vip(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        embed.title = embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
+        embed.colour = self.colour.green
+        return True, embed
 
-    async def vip_added(self):
-        await self.set_user_attrs()
-        self.embed.title = self.embed.title.replace('Vip', 'VIP')
-        self.embed.colour = self.colour.green
+    def vip_added(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        embed.title = embed.title.replace('Vip', 'VIP')
+        embed.colour = self.colour.green
+        return embed
 
-    async def unvip(self):
-        await self.set_user_attrs()
-        self.embed.title = self.embed.title.replace('Unvip', 'UnVIP')
+    def unvip(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        embed.title = embed.title.replace('Unvip', 'UnVIP')
+        return embed
 
-    async def add_permitted_term(self):
-        await self.set_terms_attrs()
-        self.embed.colour = self.colour.green
-        self.embed.add_field(
-            name="Added by", value=f"{self.info['requester_login']}")
-        if "`" in self.info["text"]:
-            self.embed.add_field(
-                name="Value", value=f"```{self.info['text']}```", inline=False)
+    def add_permitted_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_terms_attrs(mod_action, embed)
+        embed.colour = self.colour.green
+        embed.add_field(
+            name="Added by", value=f"{info['requester_login']}")
+        if "`" in info["text"]:
+            embed.add_field(
+                name="Value", value=f"```{info['text']}```", inline=False)
         else:
-            self.embed.add_field(
-                name="Value", value=f"`{self.info['text']}`", inline=False)
-        self.embed.add_field(
-            name="From Automod", value=f"`{self.info['from_automod']}`")
-        if self.info["expires_at"] != "":
+            embed.add_field(
+                name="Value", value=f"`{info['text']}`", inline=False)
+        embed.add_field(
+            name="From Automod", value=f"`{info['from_automod']}`")
+        if info["expires_at"] != "":
             d = datetime.strptime(
-                self.info["expires_at"][:-4] + "Z", "%Y-%m-%dT%H:%M:%S.%fZ")
+                info["expires_at"][:-4] + "Z", "%Y-%m-%dT%H:%M:%S.%fZ")
             epoch = d.timestamp()+1 - datetime.utcnow().timestamp()
             days = int(str(epoch // 86400).split('.')[0])
             hours = int(str(epoch // 3600 % 24).split('.')[0])
@@ -328,42 +336,46 @@ class Parser:
                 full.append(f"{seconds}s")
 
             expiry = ''.join(full)
+            embed.add_field(
+                name="Expires in", value=f"{expiry} (<t:{int(epoch+datetime.now().timestamp())}:R>)")
         else:
-            expiry = "Permanent"
-        self.embed.add_field(
-            name="Expires in", value=expiry)
-        self.embed.remove_field(1)
+            embed.add_field(name="Expires in", value="Permanent")
+        
+        embed.remove_field(1)
+        return embed
 
-    async def add_blocked_term(self):
-        return await self.add_permitted_term()
+    def add_blocked_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.add_permitted_term(streamer, info, mod_action, embed)
 
-    async def delete_permitted_term(self):
-        await self.set_terms_attrs()
-        self.embed.add_field(
-            name="Removed by", value=f"{self.info['requester_login']}")
-        if "`" in self.info["text"]:
-            self.embed.add_field(
-                name="Value", value=f"```{self.info['text']}```")
+    def delete_permitted_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+        embed = self.set_terms_attrs(mod_action, embed)
+        embed.add_field(
+            name="Removed by", value=f"{info['requester_login']}")
+        if "`" in info["text"]:
+            embed.add_field(
+                name="Value", value=f"```{info['text']}```")
         else:
-            self.embed.add_field(
-                name="Value", value=f"`{self.info['text']}`")
-        self.embed.remove_field(1)
+            embed.add_field(
+                name="Value", value=f"`{info['text']}`")
+        embed.remove_field(1)
+        return embed
 
-    async def delete_blocked_term(self):
-        return await self.delete_permitted_term()
+    def delete_blocked_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+        return self.delete_permitted_term(streamer, info, mod_action, embed)
 
-    async def automod_caught_message(self):
-        user = self.info["message"]["sender"]["login"]
+    def automod_caught_message(self, streamer, info, mod_action, embed) -> discord.Embed:
+        ignore_message = False
+        user = info["message"]["sender"]["login"]
         user_escaped = user.lower().replace('_', '\_')
-        self.embed.title = f"{self.mod_action.replace('_', ' ').title()}"
-        self.embed.color = self.colour.red
-        self.embed.add_field(
-            name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{self.streamer.username}/viewercard/{user_escaped}>)", inline=True)
-        self.embed.add_field(
-            name="Content Classification", value=f"{self.info['content_classification']['category'].title()} level {self.info['content_classification']['level']}", inline=True)
+        embed.title = f"{mod_action.replace('_', ' ').title()}"
+        embed.color = self.colour.red
+        embed.add_field(
+            name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user_escaped}>)", inline=True)
+        embed.add_field(
+            name="Content Classification", value=f"{info['content_classification']['category'].title()} level {info['content_classification']['level']}", inline=True)
         text_fragments = []
         topics = []
-        for fragment in self.info["message"]["content"]["fragments"]:
+        for fragment in info["message"]["content"]["fragments"]:
             if fragment != {}:
                 for topic in fragment.get("automod", {}).get("topics", {}).keys():
                     if topic not in topics:
@@ -373,26 +385,25 @@ class Parser:
 
         text_fragments = list(dict.fromkeys(text_fragments)) #Remove duplicates from topics and text fragments, they're pointless
         topics = list(dict.fromkeys(topics))
-
-        self.logging.info(text_fragments)
-        self.embed.add_field(name="Text fragments",
+        embed.add_field(name="Text fragments",
                              value=f"`{', '.join([f.strip(' ') for f in text_fragments]).strip(', ')}`")
-        self.embed.add_field(
+        embed.add_field(
             name="Topics", value=f"`{', '.join(topics).strip(', ')}`")
-        if self.info["status"] == "PENDING":
-            self.embed.colour = self.colour.yellow
-            if "automod_caught_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
-                self.ignore_message = True
-        elif self.info["status"] == "ALLOWED":
-            if "automod_allowed_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
-                self.ignore_message = True
-            self.embed.colour = self.colour.green
-        elif self.info["status"] == "DENIED":
-            if "automod_denied_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
-                self.ignore_message = True
-            self.embed.colour = self.colour.red
+        if info["status"] == "PENDING":
+            embed.colour = self.colour.yellow
+            if "automod_caught_message" not in streamer.action_whitelist and streamer.action_whitelist != []:
+                ignore_message = True
+        elif info["status"] == "ALLOWED":
+            if "automod_allowed_message" not in streamer.action_whitelist and streamer.action_whitelist != []:
+                ignore_message = True
+            embed.colour = self.colour.green
+        elif info["status"] == "DENIED":
+            if "automod_denied_message" not in streamer.action_whitelist and streamer.action_whitelist != []:
+                ignore_message = True
+            embed.colour = self.colour.red
         else:
-            if "automod_caught_message" not in self.streamer.action_whitelist and self.streamer.action_whitelist != []:
-                self.ignore_message = True
-        if self.info["status"] != "PENDING":
-            self.embed.title = self.embed.title.replace("Caught", self.info["status"].title())
+            if "automod_caught_message" not in streamer.action_whitelist and streamer.action_whitelist != []:
+                ignore_message = True
+        if info["status"] != "PENDING":
+            embed.title = embed.title.replace("Caught", info["status"].title())
+        return ignore_message, embed
