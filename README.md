@@ -3,7 +3,7 @@
 Figuring out how to do this was a pain, and there was nothing good on the internet that I could find, so I might as well give it out to anyone who might want it.
 
 
-### Current Issues
+### Known Issues
 
 * Unmodding and Unviping do not send a message when the command is run in the native twitch chat. They will send a message when the command is sent through an IRC Client such as Chatty
 
