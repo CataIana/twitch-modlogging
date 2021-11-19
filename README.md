@@ -21,9 +21,9 @@ Top is with embeds disabled, and bottom enabled
 
 ### Installation
 
-* Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
+* Ensure you have at least python 3.6 installed
 
-* Python 3.6 and up supported only.
+* Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
 
 * Install the required dependencies `cd twitch-modlogging && sudo pip3 install --upgrade -r requirements.txt` on linux. On windows run cmd as admin and run `pip install --upgrade -r requirements.txt`
 
