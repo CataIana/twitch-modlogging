@@ -1,10 +1,11 @@
 import discord
 import asyncio
 from datetime import datetime
-import pytz
 import json
 import logging
 from message import Message
+from modactions import ModAction
+from streamer import Streamer
 
 class Colours:
     def __init__(self):
@@ -21,21 +22,21 @@ class Parser:
         self.use_embeds = kwargs.get("use_embeds", True)
         self.colour = Colours()
         self._chatroom_actions = {
-            "slow": "Slow Chat Mode Enabled",
-            "slowoff": "Slow Chat Mode Disabled",
-            "r9kbeta": "Unique Chat Mode Enabled",
-            "r9kbetaoff": "Unique Chat Mode Disabled",
-            "clear": "Chat Cleared by Moderator",
-            "emoteonly": "Emote Only Chat Mode Enabled",
-            "emoteonlyoff": "Emote Only Chat Mode Disabled",
-            "subscribers": "Subscriber Only Chat Mode Enabled",
-            "subscribersoff": "Subscriber Only Chat Mode Disabled",
-            "followers": "Follower Only Chat Mode Enabled",
-            "followersoff": "Follower Only Chat Mode Disabled",
-            "host": "Host Action",
-            "unhost": "Unhost Action",
-            "raid": "Raid Action",
-            "unraid": "Unraid Action"
+            ModAction.slow: "Slow Chat Mode Enabled",
+            ModAction.slowoff: "Slow Chat Mode Disabled",
+            ModAction.r9kbeta: "Unique Chat Mode Enabled",
+            ModAction.r9kbetaoff: "Unique Chat Mode Disabled",
+            ModAction.clear: "Chat Cleared by Moderator",
+            ModAction.emoteonly: "Emote Only Chat Mode Enabled",
+            ModAction.emoteonlyoff: "Emote Only Chat Mode Disabled",
+            ModAction.subscribers: "Subscriber Only Chat Mode Enabled",
+            ModAction.subscribersoff: "Subscriber Only Chat Mode Disabled",
+            ModAction.followers: "Follower Only Chat Mode Enabled",
+            ModAction.followersoff: "Follower Only Chat Mode Disabled",
+            ModAction.host: "Host Action",
+            ModAction.unhost: "Unhost Action",
+            ModAction.raid: "Raid Action",
+            ModAction.unraid: "Unraid Action"
         }
         self.automod_cache = {}
         self.loop = asyncio.get_event_loop()
@@ -58,16 +59,8 @@ class Parser:
         else:
             message = data["message"]
         info = message["data"]
-        streamer = self.streamers[data["topic"].split(".")[-1]]
+        streamer: Streamer = self.streamers[data["topic"].split(".")[-1]]
         ignore_message = False
-
-        try:  # Get the moderation action that was done, different mod actions have it in different places so we have some extra lines
-            mod_action = info["moderation_action"].lower()
-        except KeyError:
-            try:
-                mod_action = info["type"]
-            except KeyError:
-                mod_action = message["type"]
 
         if discord.__version__ == "2.0.0.a":
             embed = discord.Embed(timestamp=discord.utils.utcnow())
@@ -90,25 +83,33 @@ class Parser:
 
         embed.add_field(name="Moderator", value=moderator, inline=True)
 
+        try:  # Get the moderation action that was done, different mod actions have it in different places so we have some extra lines
+            mod_action_str = info["moderation_action"].lower()
+        except KeyError:
+            try:
+                mod_action_str = info["type"]
+            except KeyError:
+                mod_action_str = message["type"]
         try:
-            mod_action_func = getattr(self, mod_action.lower())
-        except AttributeError:
-            embed.add_field(name="UNKNOWN ACTION", value=f"`{mod_action}`", inline=False)
-        r = mod_action_func(streamer, info, mod_action, embed)
-        if type(r) == tuple:
-            embed = r[1]
-            ignore_message = r[0]
-        else:
-            embed = r
+            mod_action = ModAction(mod_action_str)
+            mod_action_func = getattr(self, mod_action.value)
+            r = mod_action_func(streamer, info, mod_action, embed)
+            if type(r) == tuple:
+                embed = r[1]
+                ignore_message = r[0]
+            else:
+                embed = r
+        except KeyError:
+            embed.add_field(name="UNKNOWN ACTION", value=f"`{mod_action_str}`", inline=False)
 
         if moderator in self.ignored_mods:
             ignore_message = True
 
         #Ignores
-        if mod_action not in streamer.action_whitelist and streamer.action_whitelist != [] and mod_action != "automod_caught_message": #Automod ignoring handled seperately
+        if mod_action not in streamer.action_whitelist and streamer.action_whitelist != [] and mod_action != ModAction.automod_caught_message: #Automod ignoring handled seperately
             ignore_message = True
 
-        if mod_action == "mod" and message["type"] != "moderator_added":
+        if mod_action == ModAction.mod and message["type"] != "moderator_added":
             ignore_message = True
 
         # Make the text version out of the embed. This is shitty, I know. Works surprisingly well though, for now...
@@ -128,10 +129,10 @@ class Parser:
 
     # More generic functions that the specifics call
 
-    def set_user_attrs(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def set_user_attrs(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         user = info["target_user_login"] or info['args'][0]
         user_escaped = user.lower().replace('_', '\_')
-        embed.title = f"Mod {mod_action.replace('_', ' ').title()} Action"
+        embed.title = f"Mod {mod_action.value.replace('_', ' ').title()} Action"
         #embed.description=f"[Review Viewercard for User](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user.lower()}>)"
         embed.color = self.colour.red
         embed.add_field(
@@ -139,11 +140,11 @@ class Parser:
         return embed
 
     def set_terms_attrs(self, mod_action, embed) -> discord.Embed:
-        embed.title = f"Mod {mod_action.replace('_', ' ').title()} Action"
+        embed.title = f"Mod {mod_action.value.replace('_', ' ').title()} Action"
         embed.color = self.colour.red
         return embed
 
-    def set_appeals_attrs(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def set_appeals_attrs(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         self.set_user_attrs(streamer, info, mod_action, embed)
         embed.add_field(
             name="Moderator Reason", value=f"{info['moderator_message'] if info['moderator_message'] != '' else 'NONE'}", inline=False)
@@ -156,71 +157,71 @@ class Parser:
 
     # Action type specific functions that are fetched using getattr()
 
-    def approve_unban_request(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def approve_unban_request(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed.colour = self.colour.green
         return self.set_appeals_attrs(streamer, info, mod_action, embed)
 
-    def deny_unban_request(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def deny_unban_request(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_appeals_attrs(streamer, info, mod_action, embed)
 
-    def slow(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def slow(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name=f"Slow Amount (second{'' if int(info['args'][0]) == 1 else 's'})", value=f"`{info['args'][0]}`", inline=True)
         return embed
 
-    def slowoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def slowoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def r9kbeta(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def r9kbeta(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def r9kbetaoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def r9kbetaoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def clear(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def clear(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def emoteonly(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def emoteonly(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def emoteonlyoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def emoteonlyoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def subscribers(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def subscribers(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def subscribersoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def subscribersoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def followers(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def followers(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name=f"Time Needed to be Following (minute{'' if int(info['args'][0]) == 1 else 's'})", value=f"`{info['args'][0]}`", inline=True)
         return embed
 
-    def followersoff(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def followersoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def host(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def host(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name="Hosted Channel", value=f"[{info['args'][0]}](<https://www.twitch.tv/{info['args'][0]}>)", inline=True)
         return embed
 
-    def unhost(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def unhost(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def raid(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def raid(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name="Raided Channel", value=f"[{info['args'][0]}](<https://www.twitch.tv/{info['args'][0]}>)", inline=True)
         return embed
 
-    def unraid(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def unraid(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def timeout(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def timeout(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         if info['args'][2] == "":
             embed.add_field(
@@ -239,10 +240,10 @@ class Parser:
         #embed.add_field(name="\u200b", value="\u200b")
         return embed
 
-    def untimeout(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def untimeout(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.set_user_attrs(streamer, info, mod_action, embed)
 
-    def ban(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def ban(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         if info['args'][1] == "":
             embed.add_field(
@@ -256,14 +257,14 @@ class Parser:
                     name="Flag Reason", value=f"`{info['args'][1]}`")
         return embed
 
-    def unban(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def unban(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed.colour = self.colour.green
         return self.set_user_attrs(streamer, info, mod_action, embed)
 
-    def delete_notification(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def delete_notification(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return True, self.set_user_attrs(streamer, info, mod_action, embed)
 
-    def delete(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def delete(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         if "`" in info['args'][1]:
             embed.add_field(
@@ -275,35 +276,35 @@ class Parser:
         #     name="Message ID", value=f"`{info['args'][2]}`")
         return embed
 
-    def mod(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def mod(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = "Moderator Added Action" #Use a custom title for adding/removing mods for looks
         embed.colour = self.colour.green
         return embed
 
-    def unmod(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def unmod(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = "Moderator Removed Action"
         return embed
 
-    def vip(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def vip(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
         embed.colour = self.colour.green
         return True, embed
 
-    def vip_added(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def vip_added(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = embed.title.replace('Vip', 'VIP')
         embed.colour = self.colour.green
         return embed
 
-    def unvip(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def unvip(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = embed.title.replace('Unvip', 'UnVIP')
         return embed
 
-    def add_permitted_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def add_permitted_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_terms_attrs(mod_action, embed)
         embed.colour = self.colour.green
         embed.add_field(
@@ -344,10 +345,10 @@ class Parser:
         embed.remove_field(1)
         return embed
 
-    def add_blocked_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def add_blocked_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.add_permitted_term(streamer, info, mod_action, embed)
 
-    def delete_permitted_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def delete_permitted_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed = self.set_terms_attrs(mod_action, embed)
         embed.add_field(
             name="Removed by", value=f"{info['requester_login']}")
@@ -360,10 +361,10 @@ class Parser:
         embed.remove_field(1)
         return embed
 
-    def delete_blocked_term(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def delete_blocked_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         return self.delete_permitted_term(streamer, info, mod_action, embed)
 
-    def automod_caught_message(self, streamer, info, mod_action, embed) -> discord.Embed:
+    def automod_caught_message(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         ignore_message = False
         user = info["message"]["sender"]["login"]
         user_escaped = user.lower().replace('_', '\_')
