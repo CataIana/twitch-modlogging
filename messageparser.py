@@ -106,7 +106,7 @@ class Parser:
             ignore_message = True
 
         #Ignores
-        if mod_action not in streamer.action_whitelist and streamer.action_whitelist != [] and mod_action != ModAction.automod_caught_message: #Automod ignoring handled seperately
+        if mod_action.value not in streamer.action_whitelist and streamer.action_whitelist != [] and mod_action != ModAction.automod_caught_message: #Automod ignoring handled seperately
             ignore_message = True
 
         if mod_action == ModAction.mod and message["type"] != "moderator_added":
@@ -139,7 +139,7 @@ class Parser:
             name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user_escaped}>)", inline=True)
         return embed
 
-    def set_terms_attrs(self, mod_action, embed) -> discord.Embed:
+    def set_terms_attrs(self, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed.title = f"Mod {mod_action.value.replace('_', ' ').title()} Action"
         embed.color = self.colour.red
         return embed
@@ -150,7 +150,7 @@ class Parser:
             name="Moderator Reason", value=f"{info['moderator_message'] if info['moderator_message'] != '' else 'NONE'}", inline=False)
         return embed
 
-    def set_chatroom_attrs(self, mod_action, embed) -> discord.Embed:
+    def set_chatroom_attrs(self, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
         embed.title = self._chatroom_actions[mod_action]
         embed.color = self.colour.yellow
         return embed
@@ -368,7 +368,7 @@ class Parser:
         ignore_message = False
         user = info["message"]["sender"]["login"]
         user_escaped = user.lower().replace('_', '\_')
-        embed.title = f"{mod_action.replace('_', ' ').title()}"
+        embed.title = f"{mod_action.value.replace('_', ' ').title()}"
         embed.color = self.colour.red
         embed.add_field(
             name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user_escaped}>)", inline=True)

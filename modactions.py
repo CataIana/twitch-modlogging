@@ -44,3 +44,6 @@ class ModAction(Enum):
     #Unban Requests
     approve_unban_request = "approve_unban_request"
     deny_unban_request = "deny_unban_request"
+
+    def __int__(self):
+        return self.value
