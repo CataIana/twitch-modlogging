@@ -24,8 +24,10 @@ class ModAction(Enum):
     ban = "ban"
     unban = "unban"
     delete = "delete"
+    delete_notification = "delete_notification"
     mod = "mod"
     unmod = "unmod"
+    vip = "vip"
     vip_added = "vip_added"
     unvip = "unvip"
 
