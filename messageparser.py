@@ -62,7 +62,7 @@ class Parser:
         streamer: Streamer = self.streamers[data["topic"].split(".")[-1]]
         ignore_message = False
 
-        if discord.__version__ == "2.0.0.a":
+        if discord.__version__ == "2.0.0a":
             embed = discord.Embed(timestamp=discord.utils.utcnow())
         else:
             embed = discord.Embed(timestamp=datetime.utcnow())

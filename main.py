@@ -185,11 +185,15 @@ class PubSubLogging:
                 return
             streamer_id = json.loads(str(raw_message))["data"]["topic"].split(".")[-1]
             streamer = self._streamers[streamer_id]
+            if discord.__version__ == "2.0.0a":
+                timestamp = discord.utils.utcnow()
+            else:
+                timestamp = datetime.utcnow()
             embed = discord.Embed(
                 title=f"Safety Embed",
                 description=f"If you see this something went wrong with the data from Twitch, or how it is being handled.",
                 color=0x880080,
-                timestamp=datetime.utcnow()
+                timestamp=timestamp
             )
             embed.add_field(
                 name="Traceback", value=f"```python\n{formatted_exception}```", inline=False)

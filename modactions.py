@@ -3,7 +3,7 @@ from enum import Enum
 class ModAction(Enum):
     #Chatroom actions
     slow = "slow"
-    slowoff = "slow"
+    slowoff = "slowoff"
     r9kbeta = "r9kbeta"
     r9kbetaoff = "r9kbetaoff"
     clear = "clear"
