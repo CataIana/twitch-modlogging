@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-import discord
+import disnake
 from streamer import Streamer
 from aiohttp import ClientSession
 from typing import TYPE_CHECKING
@@ -15,7 +15,7 @@ class Message:
         self._streamer: Streamer = streamer
         self._mod_action: str = mod_action
         self._ignore_message: bool = ignore
-        self._embed: discord.Embed = embed
+        self._embed: disnake.Embed = embed
         self._embed_text: str = embed_text
         self._created_at = datetime.utcnow()
 
@@ -53,13 +53,9 @@ class Message:
         session = session or ClientSession()
         webhooks = []
         for webhook in self.streamer.webhook_urls:
-            if discord.__version__ == "2.0.0a":
-                webhooks.append(discord.Webhook.from_url(
-                    webhook, session=session))
-            else:
-                webhooks.append(discord.Webhook.from_url(
-                    webhook, adapter=discord.AsyncWebhookAdapter(session)))
-                
+            webhooks.append(disnake.Webhook.from_url(
+                webhook, session=session))
+            
         self._embed.set_footer(text=self.footer_message, icon_url=self._streamer.icon)
         for webhook in webhooks:
             try:
@@ -68,28 +64,28 @@ class Message:
                     if existing: #If we found the older message in the cache, update it :)
                         try:
                             if self._parser.use_embeds:
-                                await existing["message"].edit(embed=self._embed, allowed_mentions=discord.AllowedMentions.none())
+                                await existing["message"].edit(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none())
                             else:
-                                await existing["message"].edit(embed=self._embed_text, allowed_mentions=discord.AllowedMentions.none())
-                        except discord.NotFound:
+                                await existing["message"].edit(embed=self._embed_text, allowed_mentions=disnake.AllowedMentions.none())
+                        except disnake.NotFound:
                             pass
                         del self._parser.automod_cache[self.__raw_message["data"]["message"]["id"]]
                     else: #If it's not in the cache for some reason just send it as normal
                         if self._parser.use_embeds:
-                            w_message = await webhook.send(embed=self._embed, allowed_mentions=discord.AllowedMentions.none())
+                            w_message = await webhook.send(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none())
                         else:
-                            w_message = await webhook.send(content=self._embed_text, allowed_mentions=discord.AllowedMentions.none())
+                            w_message = await webhook.send(content=self._embed_text, allowed_mentions=disnake.AllowedMentions.none())
                 else:
                     if self._parser.use_embeds:
-                        w_message = await webhook.send(embed=self._embed, allowed_mentions=discord.AllowedMentions.none(), wait=True)
+                        w_message = await webhook.send(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
                     else:
-                        w_message = await webhook.send(content=self._embed_text, allowed_mentions=discord.AllowedMentions.none(), wait=True)
+                        w_message = await webhook.send(content=self._embed_text, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
                     if self.mod_action == "automod_caught_message":
                         self._parser.automod_cache[self.__raw_message["data"]["message"]["id"]] = {"object": self, "message": w_message}
-            except discord.NotFound:
+            except disnake.NotFound:
                 self.logging.warning(
                     f"Webhook not found for {self.streamer.username}")
-            except discord.HTTPException as e:
+            except disnake.HTTPException as e:
                 self.logging.error(f"HTTP Exception sending webhook: {e}")
         if close_when_done:
             await session.close()

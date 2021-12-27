@@ -1,4 +1,4 @@
 websockets
 asyncio
-discord.py
+disnake
 aiohttp

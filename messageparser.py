@@ -1,4 +1,4 @@
-import discord
+import disnake
 import asyncio
 from datetime import datetime
 import json
@@ -62,10 +62,7 @@ class Parser:
         streamer: Streamer = self.streamers[data["topic"].split(".")[-1]]
         ignore_message = False
 
-        if discord.__version__ == "2.0.0a":
-            embed = discord.Embed(timestamp=discord.utils.utcnow())
-        else:
-            embed = discord.Embed(timestamp=datetime.utcnow())
+        embed = disnake.Embed(timestamp=disnake.utils.utcnow())
 
         embed.add_field(
             name="Channel", value=f"[{streamer.display_name}](<https://www.twitch.tv/{streamer.username}>)", inline=True)  # Every embed should have the channel link
@@ -129,7 +126,7 @@ class Parser:
 
     # More generic functions that the specifics call
 
-    def set_user_attrs(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def set_user_attrs(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         user = info["target_user_login"] or info['args'][0]
         user_escaped = user.lower().replace('_', '\_')
         embed.title = f"Mod {mod_action.value.replace('_', ' ').title()} Action"
@@ -139,89 +136,89 @@ class Parser:
             name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user_escaped}>)", inline=True)
         return embed
 
-    def set_terms_attrs(self, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def set_terms_attrs(self, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed.title = f"Mod {mod_action.value.replace('_', ' ').title()} Action"
         embed.color = self.colour.red
         return embed
 
-    def set_appeals_attrs(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def set_appeals_attrs(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         self.set_user_attrs(streamer, info, mod_action, embed)
         embed.add_field(
             name="Moderator Reason", value=f"{info['moderator_message'] if info['moderator_message'] != '' else 'NONE'}", inline=False)
         return embed
 
-    def set_chatroom_attrs(self, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def set_chatroom_attrs(self, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed.title = self._chatroom_actions[mod_action]
         embed.color = self.colour.yellow
         return embed
 
     # Action type specific functions that are fetched using getattr()
 
-    def approve_unban_request(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def approve_unban_request(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed.colour = self.colour.green
         return self.set_appeals_attrs(streamer, info, mod_action, embed)
 
-    def deny_unban_request(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def deny_unban_request(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_appeals_attrs(streamer, info, mod_action, embed)
 
-    def slow(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def slow(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name=f"Slow Amount (second{'' if int(info['args'][0]) == 1 else 's'})", value=f"`{info['args'][0]}`", inline=True)
         return embed
 
-    def slowoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def slowoff(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def r9kbeta(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def r9kbeta(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def r9kbetaoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def r9kbetaoff(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def clear(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def clear(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def emoteonly(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def emoteonly(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def emoteonlyoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def emoteonlyoff(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def subscribers(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def subscribers(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def subscribersoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def subscribersoff(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def followers(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def followers(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name=f"Time Needed to be Following (minute{'' if int(info['args'][0]) == 1 else 's'})", value=f"`{info['args'][0]}`", inline=True)
         return embed
 
-    def followersoff(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def followersoff(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def host(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def host(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name="Hosted Channel", value=f"[{info['args'][0]}](<https://www.twitch.tv/{info['args'][0]}>)", inline=True)
         return embed
 
-    def unhost(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def unhost(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def raid(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def raid(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_chatroom_attrs(mod_action, embed)
         embed.add_field(
             name="Raided Channel", value=f"[{info['args'][0]}](<https://www.twitch.tv/{info['args'][0]}>)", inline=True)
         return embed
 
-    def unraid(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def unraid(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_chatroom_attrs(mod_action, embed)
 
-    def timeout(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def timeout(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         if info['args'][2] == "":
             embed.add_field(
@@ -240,10 +237,10 @@ class Parser:
         #embed.add_field(name="\u200b", value="\u200b")
         return embed
 
-    def untimeout(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def untimeout(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.set_user_attrs(streamer, info, mod_action, embed)
 
-    def ban(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def ban(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         if info['args'][1] == "":
             embed.add_field(
@@ -257,14 +254,14 @@ class Parser:
                     name="Flag Reason", value=f"`{info['args'][1]}`")
         return embed
 
-    def unban(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def unban(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed.colour = self.colour.green
         return self.set_user_attrs(streamer, info, mod_action, embed)
 
-    def delete_notification(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def delete_notification(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return True, self.set_user_attrs(streamer, info, mod_action, embed)
 
-    def delete(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def delete(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         if "`" in info['args'][1]:
             embed.add_field(
@@ -276,35 +273,35 @@ class Parser:
         #     name="Message ID", value=f"`{info['args'][2]}`")
         return embed
 
-    def mod(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def mod(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = "Moderator Added Action" #Use a custom title for adding/removing mods for looks
         embed.colour = self.colour.green
         return embed
 
-    def unmod(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def unmod(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = "Moderator Removed Action"
         return embed
 
-    def vip(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def vip(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
         embed.colour = self.colour.green
         return True, embed
 
-    def vip_added(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def vip_added(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = embed.title.replace('Vip', 'VIP')
         embed.colour = self.colour.green
         return embed
 
-    def unvip(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def unvip(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = embed.title.replace('Unvip', 'UnVIP')
         return embed
 
-    def add_permitted_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def add_permitted_term(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_terms_attrs(mod_action, embed)
         embed.colour = self.colour.green
         embed.add_field(
@@ -345,10 +342,10 @@ class Parser:
         embed.remove_field(1)
         return embed
 
-    def add_blocked_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def add_blocked_term(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.add_permitted_term(streamer, info, mod_action, embed)
 
-    def delete_permitted_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def delete_permitted_term(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_terms_attrs(mod_action, embed)
         embed.add_field(
             name="Removed by", value=f"{info['requester_login']}")
@@ -361,10 +358,10 @@ class Parser:
         embed.remove_field(1)
         return embed
 
-    def delete_blocked_term(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def delete_blocked_term(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.delete_permitted_term(streamer, info, mod_action, embed)
 
-    def automod_caught_message(self, streamer: Streamer, info, mod_action: ModAction, embed: discord.Embed) -> discord.Embed:
+    def automod_caught_message(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         ignore_message = False
         user = info["message"]["sender"]["login"]
         user_escaped = user.lower().replace('_', '\_')

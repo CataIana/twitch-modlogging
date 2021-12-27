@@ -3,7 +3,7 @@
 import asyncio
 from websockets import client as wclient
 from websockets.exceptions import ConnectionClosed
-import discord
+import disnake
 import uuid
 import json
 import sys
@@ -15,6 +15,7 @@ from aiohttp import ClientSession
 from messageparser import Parser
 from streamer import Streamer
 import logging
+from typing import Dict
 
 class ConfigError(Exception):
     pass
@@ -64,7 +65,7 @@ class PubSubLogging:
 
         try:
             # Get information of each defined streamer, such as ID, icon, and display name
-            self._streamers = {}
+            self._streamers: Dict[str, Streamer] = {}
             response = get(url=f"https://api.twitch.tv/helix/users?login={'&login='.join([channel for channel in channels.keys() if not channel.startswith('_')])}", headers={"Client-ID": client_id, "Authorization": f"Bearer {auth_token}"})
             json_obj = response.json()
             for user in json_obj["data"]: 
@@ -185,15 +186,11 @@ class PubSubLogging:
                 return
             streamer_id = json.loads(str(raw_message))["data"]["topic"].split(".")[-1]
             streamer = self._streamers[streamer_id]
-            if discord.__version__ == "2.0.0a":
-                timestamp = discord.utils.utcnow()
-            else:
-                timestamp = datetime.utcnow()
-            embed = discord.Embed(
+            embed = disnake.Embed(
                 title=f"Safety Embed",
                 description=f"If you see this something went wrong with the data from Twitch, or how it is being handled.",
                 color=0x880080,
-                timestamp=timestamp
+                timestamp=disnake.utils.utcnow()
             )
             embed.add_field(
                 name="Traceback", value=f"```python\n{formatted_exception}```", inline=False)
@@ -202,19 +199,15 @@ class PubSubLogging:
 
             webhooks = []
             for webhook in streamer.webhook_urls:
-                if discord.__version__ == "2.0.0a":
-                    webhooks.append(discord.Webhook.from_url(
-                        webhook, session=self.aioSession))
-                else:
-                    webhooks.append(discord.Webhook.from_url(
-                        webhook, adapter=discord.AsyncWebhookAdapter(self.aioSession)))
+                webhooks.append(disnake.Webhook.from_url(
+                    webhook, session=self.aioSession))
             embed.set_footer(text="Sad", icon_url=streamer.icon)
             for webhook in webhooks:
                 try:
                     await webhook.send(embed=embed)
-                except discord.NotFound:
+                except disnake.NotFound:
                     self.logging.error(f"Webhook not found for {streamer}")
-                except discord.HTTPException as e:
+                except disnake.HTTPException as e:
                     self.logging.error(f"HTTP Exception sending webhook: {e}")
 
 if __name__ == "__main__":
