@@ -66,3 +66,5 @@ Top is with embeds disabled, and bottom enabled
 * I personally run this on linux using a systemd service. I highly recommend following a similar approach. For help setting up such approach, check out [this](https://tecadmin.net/setup-autorun-python-script-using-systemd/)
 
 Have a nice day :)
+
+Copyright &copy; 2021 CataIana, under the GNU GPLv3 License.
