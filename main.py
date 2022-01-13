@@ -10,9 +10,9 @@ import sys
 from requests import get
 from random import uniform
 from traceback import format_tb
-from datetime import datetime
 from aiohttp import ClientSession
 from messageparser import Parser
+from message import Message
 from streamer import Streamer
 import logging
 from typing import Dict
@@ -39,6 +39,8 @@ class PubSubLogging:
         chandler.setLevel(self.logging.level)
         chandler.setFormatter(formatter)
         self.logging.addHandler(chandler)
+
+        self.queue = asyncio.Queue(maxsize=0)
 
         try:
             with open("settings.json") as f:
@@ -101,8 +103,6 @@ class PubSubLogging:
         self.subscribe_message = {"type": "LISTEN", "nonce": str(uuid.uuid1().hex), "data": {
             "topics": topics, "auth_token": auth_token}}
 
-        
-
         self.parser = Parser(self._streamers, use_embeds=use_embeds, ignored_mods=ignored_mods)
 
     def run(self):
@@ -128,8 +128,11 @@ class PubSubLogging:
             self.logging.info("Connected to websocket")
             json_message = json.dumps(self.subscribe_message)
             await self.connection.send(json_message)
-            tasks = [self.loop.create_task(self.heartbeat()),
-                     self.loop.create_task(self.message_reciever())]
+            tasks = [
+                self.loop.create_task(self.heartbeat()),
+                self.loop.create_task(self.message_reciever()),
+                self.loop.create_task(self.worker())
+            ]
             await asyncio.wait(tasks)
 
     async def message_reciever(self):
@@ -153,6 +156,14 @@ class PubSubLogging:
             except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
                 break
+    
+    async def worker(self):
+        while True:
+            message: Message = await self.queue.get()
+            self.logging.debug(f"Recieved queue event")
+            if not message.ignore:  # Some messages can be ignored as duplicates are recieved etc
+                await message.send(session=self.aioSession)
+            self.queue.task_done()
 
     async def messagehandler(self, raw_message):
         try:
@@ -174,8 +185,7 @@ class PubSubLogging:
             elif json_message["type"] == "MESSAGE":
                 # Data parser, along with all the switches for various mod actions
                 message = await self.parser.parse_message(json_message["data"])
-                if not message.ignore:  # Some messages can be ignored as duplicates are recieved etc
-                    await message.send(session=self.aioSession)
+                self.queue.put_nowait(message)
 
         except Exception as e: #Catch every exception and send it to the associated streamer, if they can be gathered
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(
