@@ -4,6 +4,7 @@ import disnake
 from streamer import Streamer
 from aiohttp import ClientSession
 from typing import TYPE_CHECKING
+from modactions import ModAction
 if TYPE_CHECKING:
     from messageparser import Parser
 
@@ -59,14 +60,14 @@ class Message:
         self._embed.set_footer(text=self.footer_message, icon_url=self._streamer.icon)
         for webhook in webhooks:
             try:
-                if self.mod_action == "automod_caught_message" and self.__raw_message["data"]["status"] in ["DENIED", "ALLOWED"]:
+                if self.mod_action == ModAction.automod_caught_message and self.__raw_message["data"]["status"] in ["DENIED", "ALLOWED"]:
                     existing = self._parser.automod_cache.get(self.__raw_message["data"]["message"]["id"], None)
                     if existing: #If we found the older message in the cache, update it :)
                         try:
                             if self._parser.use_embeds:
                                 await existing["message"].edit(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none())
                             else:
-                                await existing["message"].edit(embed=self._embed_text, allowed_mentions=disnake.AllowedMentions.none())
+                                await existing["message"].edit(content=self._embed_text, allowed_mentions=disnake.AllowedMentions.none())
                         except disnake.NotFound:
                             pass
                         del self._parser.automod_cache[self.__raw_message["data"]["message"]["id"]]
@@ -80,8 +81,8 @@ class Message:
                         w_message = await webhook.send(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
                     else:
                         w_message = await webhook.send(content=self._embed_text, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
-                    if self.mod_action == "automod_caught_message":
-                        self._parser.automod_cache[self.__raw_message["data"]["message"]["id"]] = {"object": self, "message": w_message}
+                    if self.mod_action == ModAction.automod_caught_message and self.__raw_message["data"]["status"] in ["PENDING"]:
+                        self._parser.automod_cache.update({self.__raw_message["data"]["message"]["id"]: {"object": self, "message": w_message}})
             except disnake.NotFound:
                 self.logging.warning(
                     f"Webhook not found for {self.streamer.username}")

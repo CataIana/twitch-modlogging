@@ -308,10 +308,10 @@ class Parser:
             name="Added by", value=f"{info['requester_login']}")
         if "`" in info["text"]:
             embed.add_field(
-                name="Value", value=f"```{info['text']}```", inline=False)
+                name="Term", value=f"```{info['text']}```", inline=False)
         else:
             embed.add_field(
-                name="Value", value=f"`{info['text']}`", inline=False)
+                name="Term", value=f"`{info['text']}`", inline=False)
         embed.add_field(
             name="From Automod", value=f"`{info['from_automod']}`")
         if info["expires_at"] != "":
