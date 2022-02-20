@@ -133,13 +133,12 @@ class PubSubLogging:
                 self.loop.create_task(self.message_reciever()),
                 self.loop.create_task(self.worker())
             ]
-            await asyncio.wait(tasks)
+            await asyncio.wait(tasks) # Tasks will run until the connection closes, we need to re-establish it if it closes
 
     async def message_reciever(self):
         while True:
             try:
                 message = await self.connection.recv()
-                #self.logging.info('Received message from server: ' + str(message))
                 await self.messagehandler(message)
             except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
@@ -158,7 +157,7 @@ class PubSubLogging:
                 break
     
     async def worker(self):
-        while True:
+        while not self.connection.closed:
             message: Message = await self.queue.get()
             self.logging.debug(f"Recieved queue event")
             if not message.ignore:  # Some messages can be ignored as duplicates are recieved etc
@@ -186,7 +185,6 @@ class PubSubLogging:
                 # Data parser, along with all the switches for various mod actions
                 message = await self.parser.parse_message(json_message["data"])
                 self.queue.put_nowait(message)
-
         except Exception as e: #Catch every exception and send it to the associated streamer, if they can be gathered
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(
                 format_tb(e.__traceback__)) + f"{type(e).__name__}: {e}"
