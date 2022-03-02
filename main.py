@@ -41,13 +41,14 @@ class PubSubLogging:
         self.logging.addHandler(chandler)
 
         self.queue = asyncio.Queue(maxsize=0)
+        self._streamers: Dict[str, Streamer] = {}
 
         try:
             with open("settings.json") as f:
                 channels = json.load(f)
         except FileNotFoundError:
             raise ConfigError("Unable to locate settings file!")
-        if "authorization" not in channels.keys():
+        if not channels.get("authorization", None):
             raise ConfigError("Authorization not provided")
         try:  # Get authorization data
             uid = str(channels["authorization"]["id"])
@@ -61,13 +62,12 @@ class PubSubLogging:
         ignored_mods = channels["_config"].get("ignored_moderators", [])
         if type(ignored_mods) == str:
             ignored_mods = [ignored_mods]
-        if ignored_mods == None:
+        elif ignored_mods == None:
             ignored_mods = []
         del channels["_config"]
 
         try:
             # Get information of each defined streamer, such as ID, icon, and display name
-            self._streamers: Dict[str, Streamer] = {}
             response = get(url=f"https://api.twitch.tv/helix/users?login={'&login='.join([channel for channel in channels.keys() if not channel.startswith('_')])}", headers={"Client-ID": client_id, "Authorization": f"Bearer {auth_token}"})
             json_obj = response.json()
             for user in json_obj["data"]: 
@@ -80,7 +80,7 @@ class PubSubLogging:
                     enable_automod = channels[user["login"]].get("enable_automod", False)
                     mod_action_whitelist = channels[user["login"]].get("mod_action_whitelist", [])
                     self._streamers[user['id']] = Streamer(
-                        user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks, automod=enable_automod, whitelist=mod_action_whitelist)
+                        user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks, enable_automod=enable_automod, action_whitelist=mod_action_whitelist)
         except KeyError:
             raise ConfigError("Error during initialization. Check your client id and settings file!")
 
@@ -92,7 +92,7 @@ class PubSubLogging:
         using_automod = [] #Purely for the logging message
         for c_id in list(self._streamers.keys()):
             topics.append(f"chat_moderator_actions.{uid}.{c_id}")
-            if self._streamers[c_id].automod: #Subscribe to automod topics if enabled.
+            if self._streamers[c_id].enable_automod: #Subscribe to automod topics if enabled.
                 topics.append(f"automod-queue.{uid}.{c_id}")
                 #topics.append(f"user-moderation-notifications.{uid}.{c_id}")
                 using_automod.append(self._streamers[c_id].username)
@@ -133,19 +133,23 @@ class PubSubLogging:
                 self.loop.create_task(self.message_reciever()),
                 self.loop.create_task(self.worker())
             ]
-            await asyncio.wait(tasks) # Tasks will run until the connection closes, we need to re-establish it if it closes
+            try:
+                await asyncio.wait(tasks) # Tasks will run until the connection closes, we need to re-establish it if it closes
+            except asyncio.exceptions.CancelledError:
+                pass
+            self.logging.info("Reconnecting")
 
     async def message_reciever(self):
-        while True:
+        while not self.connection.closed:
             try:
                 message = await self.connection.recv()
                 await self.messagehandler(message)
             except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
-                break
+        [task.cancel() for task in asyncio.tasks.all_tasks() if task is not asyncio.tasks.current_task()]
 
     async def heartbeat(self):
-        while True:
+        while not self.connection.closed:
             try:
                 json_request = json.dumps({"type": "PING"})
                 self.logging.debug("Ping!")
@@ -154,7 +158,7 @@ class PubSubLogging:
                 await asyncio.sleep(120+uniform(-0.25, 0.25))
             except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
-                break
+        [task.cancel() for task in asyncio.tasks.all_tasks() if task is not asyncio.tasks.current_task()]
     
     async def worker(self):
         while not self.connection.closed:
@@ -164,7 +168,7 @@ class PubSubLogging:
                 await message.send(session=self.aioSession)
             self.queue.task_done()
 
-    async def messagehandler(self, raw_message):
+    async def messagehandler(self, raw_message: dict):
         try:
             json_message = json.loads(str(raw_message))
             self.logging.debug(json.dumps(json_message, indent=4))

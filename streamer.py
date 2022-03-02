@@ -1,15 +1,14 @@
+from dataclasses import dataclass, field
 from typing import List
 
+@dataclass(frozen=True, order=True)
 class Streamer:
-    def __init__(self, username, display_name, icon, webhook_urls, automod=False, whitelist=[]):
-        self.username: str = username
-        self.user: str = username
-        self.display_name: str = display_name
-        self.icon: str = icon
-        self.webhook_urls: List[str] = webhook_urls
-        self.automod: bool = automod
-        self.enable_automod: bool = automod
-        self.action_whitelist: List[str] = whitelist
+    username: str
+    display_name: str
+    icon: str
+    webhook_urls: List[str]
+    enable_automod: bool = field(default=False)
+    action_whitelist: List[str] = field(default_factory=list)
 
     def __str__(self):
         return self.username

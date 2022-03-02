@@ -13,38 +13,38 @@ class Message:
         self._parser: Parser = parser
         self.__raw_message: dict = raw
         self.logging = logging.getLogger("Twitch Pubsub Logging")
-        self._streamer: Streamer = streamer
-        self._mod_action: str = mod_action
-        self._ignore_message: bool = ignore
-        self._embed: disnake.Embed = embed
-        self._embed_text: str = embed_text
-        self._created_at = datetime.utcnow()
+        self.__streamer: Streamer = streamer
+        self.__mod_action: str = mod_action
+        self.__ignore_message: bool = ignore
+        self.__embed: disnake.Embed = embed
+        self.__embed_text: str = embed_text
+        self.__created_at = datetime.utcnow()
 
         self.footer_message: str = "Mew"
 
     @property
     def streamer(self):
-        return self._streamer
+        return self.__streamer
 
     @property
     def mod_action(self):
-        return self._mod_action
+        return self.__mod_action
 
     @property
     def created_at(self):
-        return self._created_at
+        return self.__created_at
 
     @property
     def embed(self):
-        return self._embed
+        return self.__embed
 
     @property
     def embed_text(self):
-        return self._embed_text
+        return self.__embed_text
 
     @property
     def ignore(self):
-        return self._ignore_message
+        return self.__ignore_message
 
     async def send(self, session=None):
         close_when_done = False
@@ -57,7 +57,7 @@ class Message:
             webhooks.append(disnake.Webhook.from_url(
                 webhook, session=session))
             
-        self._embed.set_footer(text=self.footer_message, icon_url=self._streamer.icon)
+        self.__embed.set_footer(text=self.footer_message, icon_url=self.__streamer.icon)
         for webhook in webhooks:
             try:
                 if self.mod_action == ModAction.automod_caught_message and self.__raw_message["data"]["status"] in ["DENIED", "ALLOWED"]:
@@ -65,22 +65,22 @@ class Message:
                     if existing: #If we found the older message in the cache, update it :)
                         try:
                             if self._parser.use_embeds:
-                                await existing["message"].edit(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none())
+                                await existing["message"].edit(embed=self.__embed, allowed_mentions=disnake.AllowedMentions.none())
                             else:
-                                await existing["message"].edit(content=self._embed_text, allowed_mentions=disnake.AllowedMentions.none())
+                                await existing["message"].edit(content=self.__embed_text, allowed_mentions=disnake.AllowedMentions.none())
                         except disnake.NotFound:
                             pass
                         del self._parser.automod_cache[self.__raw_message["data"]["message"]["id"]]
                     else: #If it's not in the cache for some reason just send it as normal
                         if self._parser.use_embeds:
-                            w_message = await webhook.send(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none())
+                            w_message = await webhook.send(embed=self.__embed, allowed_mentions=disnake.AllowedMentions.none())
                         else:
-                            w_message = await webhook.send(content=self._embed_text, allowed_mentions=disnake.AllowedMentions.none())
+                            w_message = await webhook.send(content=self.__embed_text, allowed_mentions=disnake.AllowedMentions.none())
                 else:
                     if self._parser.use_embeds:
-                        w_message = await webhook.send(embed=self._embed, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
+                        w_message = await webhook.send(embed=self.__embed, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
                     else:
-                        w_message = await webhook.send(content=self._embed_text, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
+                        w_message = await webhook.send(content=self.__embed_text, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
                     if self.mod_action == ModAction.automod_caught_message and self.__raw_message["data"]["status"] in ["PENDING"]:
                         self._parser.automod_cache.update({self.__raw_message["data"]["message"]["id"]: {"object": self, "message": w_message}})
             except disnake.NotFound:
