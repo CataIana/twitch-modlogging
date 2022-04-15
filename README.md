@@ -17,8 +17,6 @@ Top is with embeds disabled, and bottom enabled
 
 * If there are a large number of mod actions in a small time frame (when a nuke happens or similar), the webhook will be throttled and will take some time to catch up. Not all mod actions may be posted if this occurs
 
-* This is compatible with both discord.py 1.7.3 and 2.0.0a
-
 ### Installation
 
 * Ensure you have at least python 3.6 installed
