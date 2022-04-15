@@ -6,7 +6,9 @@
     },
     "_config": {
         "use_embeds": true,
-        "ignored_moderators": ["someusername", "someotherusername"]
+        "ignored_moderators": ["someusername", "someotherusername"],
+        "uptime_heartbeat_url": "",
+        "uptime_heartbeat_frequency_every_x_minutes": 0
     },
     "somestreamername": {
         "enable_automod": false,

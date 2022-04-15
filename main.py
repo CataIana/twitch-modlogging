@@ -42,6 +42,9 @@ class PubSubLogging:
 
         self.queue = asyncio.Queue(maxsize=0)
         self._streamers: Dict[str, Streamer] = {}
+        self._tasks: list[asyncio.Task] = []
+
+        # Read twitch authorization data
 
         try:
             with open("settings.json") as f:
@@ -58,12 +61,21 @@ class PubSubLogging:
         except KeyError:
             raise ConfigError("Unable to fetch user ID and Authorization Token!")
 
+        # Read config options
+
         use_embeds = channels["_config"].get("use_embeds", True)
         ignored_mods = channels["_config"].get("ignored_moderators", [])
         if type(ignored_mods) == str:
             ignored_mods = [ignored_mods]
         elif ignored_mods == None:
             ignored_mods = []
+
+        self.robot_heartbeat_url = channels["_config"].get("uptime_heartbeat_url", None)
+        try:
+            self.robot_heartbeat_frequency = int(channels["_config"].get("uptime_heartbeat_frequency_every_x_minutes", 0))
+        except ValueError:
+            raise ConfigError("Uptime heartbeat frequency is not a valid integer!")
+
         del channels["_config"]
 
         try:
@@ -128,13 +140,14 @@ class PubSubLogging:
             self.logging.info("Connected to websocket")
             json_message = json.dumps(self.subscribe_message)
             await self.connection.send(json_message)
-            tasks = [
-                self.loop.create_task(self.heartbeat()),
-                self.loop.create_task(self.message_reciever()),
-                self.loop.create_task(self.worker())
+            self._tasks = [
+                self.loop.create_task(self.twitch_heartbeat()), # Twitch Pubsub requires occasional pings
+                self.loop.create_task(self.robot_heartbeat()), # If configured, send occasional pings to uptimerobot
+                self.loop.create_task(self.message_reciever()), # Recieves the messages from the websocket and parses them
+                self.loop.create_task(self.worker()) # Handles sending the messages created by the message reciever
             ]
             try:
-                await asyncio.wait(tasks) # Tasks will run until the connection closes, we need to re-establish it if it closes
+                await asyncio.wait(self._tasks) # Tasks will run until the connection closes, we need to re-establish it if it closes
             except asyncio.exceptions.CancelledError:
                 pass
             self.logging.info("Reconnecting")
@@ -146,9 +159,9 @@ class PubSubLogging:
                 await self.messagehandler(message)
             except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
-        [task.cancel() for task in asyncio.tasks.all_tasks() if task is not asyncio.tasks.current_task()]
+        [task.cancel() for task in self._tasks if task is not asyncio.tasks.current_task()]
 
-    async def heartbeat(self):
+    async def twitch_heartbeat(self):
         while not self.connection.closed:
             try:
                 json_request = json.dumps({"type": "PING"})
@@ -158,7 +171,15 @@ class PubSubLogging:
                 await asyncio.sleep(120+uniform(-0.25, 0.25))
             except ConnectionClosed:
                 self.logging.warning("Connection with server closed")
-        [task.cancel() for task in asyncio.tasks.all_tasks() if task is not asyncio.tasks.current_task()]
+        [task.cancel() for task in self._tasks if task is not asyncio.tasks.current_task()]
+    
+    async def robot_heartbeat(self):
+        while not self.connection.closed:
+            if self.robot_heartbeat_url and self.robot_heartbeat_frequency > 0:
+                self.logging.debug("Sending uptime heartbeat")
+                await self.aioSession.get(self.robot_heartbeat_url)
+            # Sleep for defined value
+            await asyncio.sleep(self.robot_heartbeat_frequency*60)
     
     async def worker(self):
         while not self.connection.closed:
