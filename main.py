@@ -142,10 +142,13 @@ class PubSubLogging:
             await self.connection.send(json_message)
             self._tasks = [
                 self.loop.create_task(self.twitch_heartbeat()), # Twitch Pubsub requires occasional pings
-                self.loop.create_task(self.robot_heartbeat()), # If configured, send occasional pings to uptimerobot
                 self.loop.create_task(self.message_reciever()), # Recieves the messages from the websocket and parses them
                 self.loop.create_task(self.worker()) # Handles sending the messages created by the message reciever
             ]
+            if self.robot_heartbeat_url and self.robot_heartbeat_frequency > 0:
+                self._tasks += [
+                    self.loop.create_task(self.robot_heartbeat()) # If configured, send occasional pings to uptimerobot
+                ]
             try:
                 await asyncio.wait(self._tasks) # Tasks will run until the connection closes, we need to re-establish it if it closes
             except asyncio.exceptions.CancelledError:
