@@ -144,7 +144,7 @@ class Parser:
     def set_appeals_attrs(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         self.set_user_attrs(streamer, info, mod_action, embed)
         embed.add_field(
-            name="Moderator Reason", value=f"{info['moderator_message'] if info['moderator_message'] != '' else '`None Provided`'}", inline=False)
+            name="Moderator Reason", value=f"`{info['moderator_message'] if info['moderator_message'] != '' else 'None Provided'}`", inline=False)
         return embed
 
     def set_chatroom_attrs(self, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
