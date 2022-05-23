@@ -13,13 +13,9 @@ Top is with embeds disabled, and bottom enabled
 
 ![How logs look](https://i.kara.cx/modlogging/thelooks.png)
 
-#### Extra notes
-
-* If there are a large number of mod actions in a small time frame (when a nuke happens or similar), the webhook will be throttled and will take some time to catch up. Not all mod actions may be posted if this occurs
-
 ### Installation
 
-* Ensure you have at least python 3.6 installed
+* Minimum python version: Python 3.7
 
 * Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
 
