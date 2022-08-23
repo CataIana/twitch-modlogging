@@ -20,6 +20,7 @@ from typing import Dict
 class ConfigError(Exception):
     pass
 
+# https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=channel:moderate+chat:read
 
 class PubSubLogging:
     def __init__(self):
@@ -118,7 +119,8 @@ class PubSubLogging:
         self.parser = Parser(self._streamers, use_embeds=use_embeds, ignored_mods=ignored_mods)
 
     def run(self):
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.new_event_loop()
+        #self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(self.main())
 
     async def main(self):
