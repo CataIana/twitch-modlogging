@@ -30,6 +30,8 @@ class ModAction(Enum):
     vip = "vip"
     vip_added = "vip_added"
     unvip = "unvip"
+    warn = "warn"
+    acknowledge_warning = "acknowledge_warning"
 
     #Channel Terms
     add_permitted_term = "add_permitted_term"

@@ -11,6 +11,7 @@ class Colours:
     def __init__(self):
         self.red = 0xE74C3C
         self.yellow = 0xFFBF00
+        self.orange = 0xFFA500
         self.green = 0x2ECC71
 
 AUTOMOD_TIMEOUT = 180
@@ -67,16 +68,14 @@ class Parser:
         embed.add_field(
             name="Channel", value=f"[{streamer.display_name}](<https://www.twitch.tv/{streamer.username}>)", inline=True)  # Every embed should have the channel link
 
-        if info.get("created_by", "") == "":  # Try get who performed the action
-            if info.get("created_by_login", "") == "":
-                if info.get("resolver_login", "") == "":
-                    moderator = "NONE"
-                else:
-                    moderator = info["resolver_login"].replace('_', '\_')
-            else:
-                moderator = info["created_by_login"].replace('_', '\_')
-        else:
+        if info.get("created_by", "") != "":  # Try get who performed the action
             moderator = info["created_by"].replace('_', '\_')
+        elif info.get("created_by_login", "") != "":
+            moderator = info["created_by_login"].replace('_', '\_')
+        elif info.get("resolver_login", "") != "":
+            moderator = info["resolver_login"].replace('_', '\_')
+        else:
+            moderator = streamer.display_name                
 
         embed.add_field(name="Moderator", value=moderator, inline=True)
 
@@ -114,13 +113,16 @@ class Parser:
         embed_text = "\n"
         if d.get("title", None) is not None:
             embed_text += f"**{d['title']}**"
-        embed_text += f" **||** **Channel:** {d['fields'][0]['value']}"
-        embed_text += f" **||** **Moderator:** {d['fields'][1]['value']}"
+        for field in d["fields"]:
+            if field["name"] == "Channel":
+                embed_text += f" **||** **Channel:** {field['value']}"
+            elif field["name"] == "Moderator":
+                embed_text += f" **||** **Moderator:** {field['value']}"
         if d.get("description", None) is not None:
             embed_text += f" **||** {d['description']}\n"
         else:
             embed_text += "\n"
-        embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'][2:]])
+        embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'] if i["name"] != "Moderator" and i["name"] != "Channel"])
 
         return Message(self, message, streamer, mod_action, ignore_message, embed, embed_text)
 
@@ -299,6 +301,19 @@ class Parser:
     def unvip(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, info, mod_action, embed)
         embed.title = embed.title.replace('Unvip', 'UnVIP')
+        return embed
+    
+    def warn(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
+        embed.colour = self.colour.yellow
+        embed.add_field(
+            name="Moderator Reason", value=f"`{info['args'][-1]}`", inline=False)
+        return self.set_user_attrs(streamer, info, mod_action, embed)
+    
+    def acknowledge_warning(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
+        embed = self.set_user_attrs(streamer, info, mod_action, embed)
+        embed.colour = self.colour.green
+        embed.title = "User Acknowledged Warning Action"
+        embed.remove_field(1)
         return embed
 
     def add_permitted_term(self, streamer: Streamer, info, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
