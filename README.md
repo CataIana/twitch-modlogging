@@ -18,7 +18,11 @@ Top is with embeds disabled, and bottom enabled
 
 - Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
 
-- Install the required dependencies `cd twitch-modlogging && sudo pip3 install --upgrade -r requirements.txt` on linux. On windows run cmd as admin and run `pip install --upgrade -r requirements.txt`
+- Install the required dependencies
+  - `cd twitch-modlogging`
+  - `python3 -m venv venv`
+  - `source venv/bin/activate` on linux or `venv/scripts/activate.ps1` on windows
+  - `pip install --upgrade -r requirements.txt`
 
 - Copy `examplesettings.json` to `settings.json`
 
