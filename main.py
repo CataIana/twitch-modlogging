@@ -7,6 +7,7 @@ import disnake
 import uuid
 import json
 import sys
+from socket import gaierror
 from requests import get
 from random import uniform
 from traceback import format_tb
@@ -128,8 +129,12 @@ class PubSubLogging:
         while True:  # Tasks will finish if connection is closed, loop ensures everything reconnects
             failed_attempts = 0
             while True:  # Not sure if it works, but an attempt at a connecting backoff, using while True since self.connection isn't defined yet
-                self.connection = await wclient.connect("wss://pubsub-edge.twitch.tv")
-                if self.connection.closed:
+                try:
+                    self.connection = await wclient.connect("wss://pubsub-edge.twitch.tv")
+                except gaierror:
+                    pass
+                # If connection didn't succeed, use getattr in case of error
+                if getattr(self.connection, "closed", True):
                     if 2**failed_attempts > 128:
                         await asyncio.sleep(120)
                     else:
