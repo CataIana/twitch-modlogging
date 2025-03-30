@@ -1,10 +1,13 @@
 import logging
 from datetime import datetime
-import disnake
-from streamer import Streamer
-from aiohttp import ClientSession
 from typing import TYPE_CHECKING
+
+import disnake
+from aiohttp import ClientSession
+
 from modactions import ModAction
+from streamer import Streamer
+
 if TYPE_CHECKING:
     from messageparser import Parser
 
@@ -60,8 +63,8 @@ class Message:
         self.__embed.set_footer(text=self.footer_message, icon_url=self.__streamer.icon)
         for webhook in webhooks:
             try:
-                if self.mod_action == ModAction.automod_caught_message and self.__raw_message["data"]["status"] in ["DENIED", "ALLOWED"]:
-                    existing = self._parser.automod_cache.get(self.__raw_message["data"]["message"]["id"], None)
+                if self.mod_action == ModAction.automod_allowed_message or self.mod_action == ModAction.automod_denied_message:
+                    existing = self._parser.automod_cache.get(self.__raw_message["payload"]["event"]["message_id"], None)
                     if existing: #If we found the older message in the cache, update it :)
                         try:
                             if self._parser.use_embeds:
@@ -70,7 +73,7 @@ class Message:
                                 await existing["message"].edit(content=self.__embed_text, allowed_mentions=disnake.AllowedMentions.none())
                         except disnake.NotFound:
                             pass
-                        del self._parser.automod_cache[self.__raw_message["data"]["message"]["id"]]
+                        del self._parser.automod_cache[self.__raw_message["payload"]["event"]["message_id"]]
                     else: #If it's not in the cache for some reason just send it as normal
                         if self._parser.use_embeds:
                             w_message = await webhook.send(embed=self.__embed, allowed_mentions=disnake.AllowedMentions.none())
@@ -81,8 +84,8 @@ class Message:
                         w_message = await webhook.send(embed=self.__embed, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
                     else:
                         w_message = await webhook.send(content=self.__embed_text, allowed_mentions=disnake.AllowedMentions.none(), wait=True)
-                    if self.mod_action == ModAction.automod_caught_message and self.__raw_message["data"]["status"] in ["PENDING"]:
-                        self._parser.automod_cache.update({self.__raw_message["data"]["message"]["id"]: {"object": self, "message": w_message}})
+                    if self.mod_action == ModAction.automod_caught_message:
+                        self._parser.automod_cache.update({self.__raw_message["payload"]["event"]["message_id"]: {"object": self, "message": w_message}})
             except disnake.NotFound:
                 self.logging.warning(
                     f"Webhook not found for {self.streamer.username}")

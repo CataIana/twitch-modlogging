@@ -1,0 +1,6 @@
+services:
+  twitch-modlogging:
+    container_name: twitch-modlogging
+    build: .
+    volumes:
+      - "./settings.json:/app/settings.json"

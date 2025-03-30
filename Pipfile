@@ -1,0 +1,6 @@
+[packages]
+websockets = "12"
+asyncio = "*"
+disnake = "*"
+aiohttp = "*"
+requests = "*"

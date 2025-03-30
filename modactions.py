@@ -1,11 +1,12 @@
 from enum import Enum
 
+
 class ModAction(Enum):
     #Chatroom actions
     slow = "slow"
     slowoff = "slowoff"
-    r9kbeta = "r9kbeta"
-    r9kbetaoff = "r9kbetaoff"
+    uniquechat = "uniquechat"
+    uniquechatoff = "uniquechatoff"
     clear = "clear"
     emoteonly = "emoteonly"
     emoteonlyoff = "emoteonlyoff"
@@ -36,8 +37,8 @@ class ModAction(Enum):
     #Channel Terms
     add_permitted_term = "add_permitted_term"
     add_blocked_term = "add_blocked_term"
-    delete_permitted_term = "delete_permitted_term"
-    delete_blocked_term = "delete_blocked_term"
+    remove_permitted_term = "remove_permitted_term"
+    remove_blocked_term = "remove_blocked_term"
 
     #Automod
     automod_caught_message = "automod_caught_message"
@@ -48,6 +49,13 @@ class ModAction(Enum):
     #Unban Requests
     approve_unban_request = "approve_unban_request"
     deny_unban_request = "deny_unban_request"
+
+    #Shared mod actions (unsure if currently used)
+    shared_chat_ban = "shared_chat_ban"
+    shared_chat_unban = "shared_chat_unban"
+    shared_chat_timeout = "shared_chat_timeout"
+    shared_chat_untimeout = "shared_chat_untimeout"
+    shared_chat_delete = "shared_chat_delete"
 
     def __int__(self):
         return self.value

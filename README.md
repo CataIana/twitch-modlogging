@@ -14,7 +14,7 @@ Top is with embeds disabled, and bottom enabled
 
 ### Installation
 
-- Minimum python version: Python 3.7
+- Recommended Python Version: 3.12
 
 - Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
 
