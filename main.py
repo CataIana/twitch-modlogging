@@ -4,8 +4,9 @@ import asyncio
 import json
 import logging
 import sys
+from contextlib import suppress
 from socket import gaierror
-from time import time
+from time import sleep, time
 from traceback import format_tb
 from typing import Dict
 
@@ -13,6 +14,8 @@ import disnake
 import websockets
 from aiohttp import ClientSession
 from requests import get
+from requests.exceptions import ConnectionError
+from websockets.legacy.client import WebSocketClientProtocol
 
 from message import Message
 from messageparser import Parser
@@ -87,20 +90,33 @@ class PubSubLogging:
         del channels["_config"]
 
         try:
-            # Get information of each defined streamer, such as ID, icon, and display name
-            response = get(url=f"https://api.twitch.tv/helix/users?login={'&login='.join([channel for channel in channels.keys() if not channel.startswith('_')])}", headers={"Client-ID": self.client_id, "Authorization": f"Bearer {self.authorisation}"})
-            json_obj = response.json()
-            for user in json_obj["data"]: 
-                if type(channels[user["login"]]) == list: #If settings file is the old configuration.
-                    webhooks = channels[user["login"]]
-                    self._streamers[user['id']] = Streamer(
-                        user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks)
-                else:
-                    webhooks = channels[user["login"]]["webhooks"]
-                    enable_automod = channels[user["login"]].get("enable_automod", False)
-                    mod_action_whitelist = channels[user["login"]].get("mod_action_whitelist", [])
-                    self._streamers[user['id']] = Streamer(
-                        user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks, enable_automod=enable_automod, action_whitelist=mod_action_whitelist)
+            failed_attempts = 0
+            while True:
+                # Get information of each defined streamer, such as ID, icon, and display name
+                try:
+                    response = get(url=f"https://api.twitch.tv/helix/users?login={'&login='.join([channel for channel in channels.keys() if not channel.startswith('_')])}", headers={"Client-ID": self.client_id, "Authorization": f"Bearer {self.authorisation}"})
+                except ConnectionError:
+                    if 2**failed_attempts > 128:
+                        sleep(120)
+                    else:
+                        sleep(2**failed_attempts)
+                    failed_attempts += 1 # Continue to back off exponentially with every failed connection attempt up to 2 minutes
+                    self.logging.warning(
+                        f"{failed_attempts} failed attempts to fetch broadcaster data.")
+                    continue
+                json_obj = response.json()
+                for user in json_obj["data"]: 
+                    if type(channels[user["login"]]) == list: #If settings file is the old configuration.
+                        webhooks = channels[user["login"]]
+                        self._streamers[user['id']] = Streamer(
+                            user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks)
+                    else:
+                        webhooks = channels[user["login"]]["webhooks"]
+                        enable_automod = channels[user["login"]].get("enable_automod", False)
+                        mod_action_whitelist = channels[user["login"]].get("mod_action_whitelist", [])
+                        self._streamers[user['id']] = Streamer(
+                            user["login"], display_name=user["display_name"], icon=user["profile_image_url"], webhook_urls=webhooks, enable_automod=enable_automod, action_whitelist=mod_action_whitelist)
+                break
         except KeyError:
             raise ConfigError("Error during initialization. Check your client id and settings file!")
 
@@ -163,74 +179,71 @@ class PubSubLogging:
 
     def run(self):
         self.loop = asyncio.new_event_loop()
-        self.loop.run_until_complete(self.main())
+        try:
+            self.loop.run_until_complete(self.main())
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self.logging.debug("Shutting down")
+            for task in self._tasks:
+                task.cancel()
+                # Now we should await task to execute it's cancellation.
+                # Cancelled task raises asyncio.CancelledError that we can suppress:
+                with suppress(asyncio.CancelledError):
+                    self.loop.run_until_complete(task)
+            self.loop.run_until_complete(self.aioSession.close())
+            # Takes forever to close
+            self.loop.run_until_complete(self.connection.close())
+        self.loop.close()
 
     async def main(self):
         self.aioSession = ClientSession()
-        while True:  # Tasks will finish if connection is closed, loop ensures everything reconnects
-            failed_attempts = 0
-            while True:  # Not sure if it works, but an attempt at a connecting backoff, using while True since self.connection isn't defined yet
-                try:
-                    self.connection = await websockets.connect(self.connection_url)
-                except gaierror:
-                    pass
-                # If connection didn't succeed, use getattr in case of error
-                if getattr(self.connection, "closed", True):
-                    if 2**failed_attempts > 128:
-                        await asyncio.sleep(120)
-                    else:
-                        await asyncio.sleep(2**failed_attempts)
-                    failed_attempts += 1 # Continue to back off exponentially with every failed connection attempt up to 2 minutes
-                    self.logging.warning(
-                        f"{failed_attempts} failed attempts to connect.")
-                else:
-                    break
-            self.logging.info("Connected to websocket")
-            if self.connection_url != DEFAULT_CONNECTION_URL:
-                self.connection_url = DEFAULT_CONNECTION_URL
-            self._tasks = [
-                self.loop.create_task(self.twitch_heartbeat()), # Twitch Pubsub requires occasional pings
-                self.loop.create_task(self.message_reciever()), # Recieves the messages from the websocket and parses them
-                self.loop.create_task(self.worker()) # Handles sending the messages created by the message reciever
-            ]
-            if self.robot_heartbeat_url and self.robot_heartbeat_frequency > 0:
-                self._tasks += [
-                    self.loop.create_task(self.robot_heartbeat()) # If configured, send occasional pings to uptimerobot
+        while True:
+            self.logging.debug("Connecting to websocket")
+            async for connection in websockets.connect(self.connection_url):
+                self.connection = connection
+                self.logging.info("Connected to websocket")
+                if self.connection_url != DEFAULT_CONNECTION_URL:
+                    self.connection_url = DEFAULT_CONNECTION_URL
+                self._tasks = [
+                    self.loop.create_task(self.twitch_heartbeat(connection)), # Twitch Pubsub requires occasional pings
+                    self.loop.create_task(self.message_reciever(connection)), # Recieves the messages from the websocket and parses them
+                    self.loop.create_task(self.worker(connection)) # Handles sending the messages created by the message reciever
                 ]
-            try:
+                if self.robot_heartbeat_url and self.robot_heartbeat_frequency > 0:
+                    self._tasks += [
+                        self.loop.create_task(self.robot_heartbeat(connection)) # If configured, send occasional pings to uptimerobot
+                    ]
                 await asyncio.wait(self._tasks) # Tasks will run until the connection closes, we need to re-establish it if it closes
-            except asyncio.exceptions.CancelledError:
-                pass
-            self.logging.info("Initiating reconnection")
 
-    async def message_reciever(self):
-        while not self.connection.closed:
+    async def message_reciever(self, connection: WebSocketClientProtocol):
+        while not connection.closed:
             try:
-                message = await self.connection.recv()
+                message = await connection.recv()
                 self.last_message_time = time()
                 await self.messagehandler(message)
             except websockets.exceptions.ConnectionClosed:
                 self.logging.warning("Connection with server closed")
-        [task.cancel() for task in self._tasks if task is not asyncio.tasks.current_task()]
+                [task.cancel() for task in self._tasks if task is not asyncio.tasks.current_task()]
 
-    async def twitch_heartbeat(self):
-        while not self.connection.closed:
+    async def twitch_heartbeat(self, connection: WebSocketClientProtocol):
+        while not connection.closed:
             await asyncio.sleep(30)
-            if self.last_message_time + 30 < time():
+            if self.last_message_time + 30 < time() and not connection.closed:
                 self.logging.info("Connection seems dead, restarting websocket")
-                await self.connection.close()
-        [task.cancel() for task in self._tasks if task is not asyncio.tasks.current_task()]
+                await connection.close()
+                [task.cancel() for task in self._tasks if task is not asyncio.tasks.current_task()]
 
-    async def robot_heartbeat(self):
-        while not self.connection.closed:
+    async def robot_heartbeat(self, connection: WebSocketClientProtocol):
+        while not connection.closed:
             if self.robot_heartbeat_url and self.robot_heartbeat_frequency > 0:
                 self.logging.debug("Sending uptime heartbeat")
                 await self.aioSession.get(self.robot_heartbeat_url)
             # Sleep for defined value
             await asyncio.sleep(self.robot_heartbeat_frequency*60)
 
-    async def worker(self):
-        while not self.connection.closed:
+    async def worker(self, connection: WebSocketClientProtocol):
+        while not connection.closed:
             message: Message = await self.queue.get()
             self.logging.debug(f"Recieved queue event")
             if not message.ignore:  # Some messages can be ignored as duplicates are recieved etc
