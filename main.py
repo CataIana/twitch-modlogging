@@ -5,7 +5,6 @@ import json
 import logging
 import sys
 from contextlib import suppress
-from socket import gaierror
 from time import sleep, time
 from traceback import format_tb
 from typing import Dict
@@ -33,7 +32,7 @@ API_URL = "https://api.twitch.tv/helix"
 class PubSubLogging:
     def __init__(self):
         self.logging = logging.getLogger("Twitch Pubsub Logging")
-        self.logging.setLevel(logging.DEBUG)
+        self.logging.setLevel(logging.INFO)
         formatter = logging.Formatter(
             "%(levelname)s [%(module)s %(funcName)s %(lineno)d]: %(message)s")
 
@@ -174,8 +173,9 @@ class PubSubLogging:
                     }
                 })
                 r3.raise_for_status()
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)
         self.logging.debug("Events Subscribed")
+        self.logging.info("Ready")
 
     def run(self):
         self.loop = asyncio.new_event_loop()
@@ -250,7 +250,7 @@ class PubSubLogging:
                 await message.send(session=self.aioSession)
             self.queue.task_done()
 
-    async def messagehandler(self, raw_message: dict):
+    async def messagehandler(self, raw_message: str):
         try:
             json_message = json.loads(str(raw_message))
             metadata = json_message.get("metadata", {})
@@ -287,39 +287,48 @@ class PubSubLogging:
             formatted_exception = "Traceback (most recent call last):\n" + ''.join(
                 format_tb(e.__traceback__)) + f"{type(e).__name__}: {e}"
             self.logging.error(formatted_exception)
-            json_message = json.loads(str(raw_message))
-            if json_message.get("payload", {}) == {}:
-                self.logging.error(raw_message)
-                return
-            streamer_id = json_message["payload"]["subscription"]["condition"]["broadcaster_user_id"]
-            streamer = self._streamers[streamer_id]
-            minimised_message = dict(json_message)
-            for k, v in json_message["payload"]["event"].items():
-                if v == None:
-                    del minimised_message["payload"]["event"][k]
-            embed = disnake.Embed(
-                title=f"Safety Embed",
-                description=f"If you see this something went wrong with the data from Twitch, or how it is being handled.",
-                color=0x880080,
-                timestamp=disnake.utils.utcnow()
-            )
-            embed.add_field(
-                name="Traceback", value=f"```python\n{formatted_exception}```", inline=False)
-            embed.add_field(
-                name="Debug Data", value=f"`{json.dumps(minimised_message, indent=4)}`", inline=False)
+            try:
+                json_message = json.loads(raw_message)
 
-            webhooks = []
-            for webhook in streamer.webhook_urls:
-                webhooks.append(disnake.Webhook.from_url(
-                    webhook, session=self.aioSession))
-            embed.set_footer(text="Sad", icon_url=streamer.icon)
-            for webhook in webhooks:
-                try:
-                    await webhook.send(embed=embed)
-                except disnake.NotFound:
-                    self.logging.error(f"Webhook not found for {streamer}")
-                except disnake.HTTPException as e:
-                    self.logging.error(f"HTTP Exception sending webhook: {e}")
+                # If payload is empty we have no broadcaster to go by so just log and continue
+                if json_message.get("payload", {}) == {}:
+                    self.logging.error(json.dumps(raw_message, indent=4))
+                    return
+                
+                streamer_id = json_message["payload"]["subscription"]["condition"]["broadcaster_user_id"]
+                streamer = self._streamers[streamer_id]
+                # Remove null values to save space
+                exclude_these_keys = ['broadcaster_user_id', 'broadcaster_user_login', 'broadcaster_user_name', 'user_name', 'moderator_user_name']
+                minimised = {k: v for k, v in json_message["payload"]["event"].items() if v is not None and k != exclude_these_keys}
+                del minimised["message"]["fragments"]
+                embed = disnake.Embed(
+                    title=f"Safety Embed",
+                    description=f"If you see this something went wrong with the data from Twitch, or how it is being handled.",
+                    color=0x880080,
+                    timestamp=disnake.utils.utcnow()
+                )
+                embed.add_field(
+                    name="Traceback", value=f"```python\n{formatted_exception}```", inline=False)
+                embed.add_field(
+                    name="Debug Data", value=f"`{json.dumps(minimised)}`", inline=False)
+
+                webhooks = []
+                for webhook in streamer.webhook_urls:
+                    webhooks.append(disnake.Webhook.from_url(
+                        webhook, session=self.aioSession))
+                embed.set_footer(text="Sad", icon_url=streamer.icon)
+                for webhook in webhooks:
+                    try:
+                        await webhook.send(embed=embed)
+                    except disnake.NotFound:
+                        self.logging.error(f"Webhook not found for {streamer}")
+                    except disnake.HTTPException as e:
+                        self.logging.error(f"HTTP Exception sending webhook: {e}")
+            except Exception as ee:
+                self.logging.error("Exception handling exception message")
+                formatted_nested_exception = "Traceback (most recent call last):\n" + ''.join(
+                format_tb(ee.__traceback__)) + f"{type(ee).__name__}: {ee}"
+                self.logging.error(formatted_nested_exception)
 
 if __name__ == "__main__":
     p = PubSubLogging()

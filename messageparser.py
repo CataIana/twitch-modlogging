@@ -402,15 +402,25 @@ class Parser:
         embed.color = self.colour.red
         embed.add_field(
             name="Flagged Account", value=f"[{user_escaped}](<https://www.twitch.tv/popout/{streamer.username}/viewercard/{user_escaped}>)", inline=True)
-        embed.add_field(
-            name="Content Classification", value=f"{event['automod']['category'].title()} level {event['automod']['level']}", inline=True)
+        # Automod events
+        if event["automod"] != None:
+            embed.add_field(
+                name="Content Classification", value=f"{event['automod']['category'].title()} level {event['automod']['level']}", inline=True)
+        
+        # Blocked term events
+        elif event["blocked_term"] != None:
+            terms_list = set([event["message"]["text"][term["boundary"]["start_pos"]:term["boundary"]["end_pos"]+1] for term in event["blocked_term"]["terms_found"]])
+            embed.add_field(
+                name=f"Relevant Blocked Term{'s' if len(terms_list) != 1 else ''}", value=f"`{', '.join(terms_list)}`", inline=True)
+
         text_fragments = []
         for fragment in event["message"]["fragments"]:
             if fragment != {}:
-                if fragment.get("text", None) is not None and fragment.get("text", None) not in text_fragments:
+                if fragment.get("text", None) is not None:
                     text_fragments.append(fragment.get("text", None))
 
-        embed.add_field(name="Text fragments", value=f"`{', '.join([f.strip(' ') for f in text_fragments]).strip(', ')}`")   
+        embed.add_field(name="Text fragments", value=f"`{', '.join([f.strip(' ') for f in text_fragments]).strip(', ')}`")
+        
         if event.get("status") == "allowed":
             if "automod_allowed_message" not in streamer.action_whitelist and streamer.action_whitelist != []:
                 ignore_message = True
