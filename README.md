@@ -2,10 +2,6 @@
 
 Figuring out how to do this was a pain, and there was nothing good on the internet that I could find, so I might as well give it out to anyone who might want it.
 
-### Known Issues
-
-- Unmodding and Unviping do not send a message when the command is run in the native twitch chat. They will send a message when the command is sent through an IRC Client such as Chatty
-
 ### The looks:
 
 Top is with embeds disabled, and bottom enabled
@@ -18,7 +14,7 @@ Top is with embeds disabled, and bottom enabled
 
 - Clone the repo with `git clone https://github.com/CataIana/twitch-modlogging.git` in your preferred terminal application
 
-- Install the required dependencies
+- If not running on docker, install the required dependencies
   - `cd twitch-modlogging`
   - `python3 -m venv venv`
   - `source venv/bin/activate` on linux or `venv/scripts/activate.ps1` on windows
@@ -42,7 +38,7 @@ Top is with embeds disabled, and bottom enabled
 
 ![Getting Client ID](/assets/clientid.png)
 
-- Then you will need to authorize the Application to access your account. If the authorized user does not have mod privileges for the streamer you wish to log for, no mod actions will be recieved. In this URL `https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=channel:moderate+chat:read` replace `CLIENT_ID` with your Client ID. If you have your own redirect URI, replace `https://twitchapps.com/tmi/` with your own. Upon authorizing with your twitch account, you will be redirected and shown an authorization token. Keep this safe and do not share it. You can always revoke access [here](https://www.twitch.tv/settings/connections) and authorize again for a new token. Copy that token into the "auth_token" key in the settings file. Removing `oauth:` from the beginning is optional
+- Then you will need to authorize the Application to access your account. If the authorized user does not have mod privileges for the streamer you wish to log for, no mod actions will be recieved. In this URL `https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=moderator:manage:automod+moderator:read:blocked_terms+moderator:read:chat_settings+moderator:read:unban_requests+moderator:read:banned_users+moderator:read:chat_messages+moderator:read:warnings+moderator:read:moderators+moderator:read:vips` replace `CLIENT_ID` with your Client ID. If you have your own redirect URI, replace `https://twitchapps.com/tmi/` with your own. Upon authorizing with your twitch account, you will be redirected and shown an authorization token. Keep this safe and do not share it. You can always revoke access [here](https://www.twitch.tv/settings/connections) and authorize again for a new token. Copy that token into the "auth_token" key in the settings file. Removing `oauth:` from the beginning is optional
 
 ![Getting auth token 1](/assets/getauthtoken1.png)
 ![Getting auth token 2](/assets/getauthtoken2.png)
@@ -55,7 +51,7 @@ Top is with embeds disabled, and bottom enabled
 
 - Config options that can be setup now: Toggling automod, moderator ignoring, toggling embeds, configuring moderation action whitelisting. All of these are optional
 
-- Now you can start up the bot and it will listen and post mod actions in your discord servers.
+- Now you can start the bot with `python3 main.py` or `docker compose up`, depending on whether you are using docker or not
 - The output should look like this:
 
 ![script running](/assets/running.png)
@@ -64,4 +60,4 @@ Top is with embeds disabled, and bottom enabled
 
 Have a nice day :)
 
-Copyright &copy; 2021 CataIana, under the GNU GPLv3 License.
+Copyright &copy; 2025 CataIana, under the GNU GPLv3 License.
