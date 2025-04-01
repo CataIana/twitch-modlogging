@@ -24,7 +24,7 @@ from streamer import Streamer
 class ConfigError(Exception):
     pass
 
-# https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=channel:moderate+chat:read
+# https://id.twitch.tv/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=https://twitchapps.com/tmi/&response_type=token&scope=moderator:manage:automod+moderator:read:blocked_terms+moderator:read:chat_settings+moderator:read:unban_requests+moderator:read:banned_users+moderator:read:chat_messages+moderator:read:warnings+moderator:read:moderators+moderator:read:vips
 
 DEFAULT_CONNECTION_URL = "wss://eventsub.wss.twitch.tv/ws"
 API_URL = "https://api.twitch.tv/helix"
