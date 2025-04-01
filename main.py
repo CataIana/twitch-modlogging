@@ -184,7 +184,7 @@ class PubSubLogging:
         except KeyboardInterrupt:
             pass
         finally:
-            self.logging.debug("Shutting down")
+            self.logging.info("Shutting down")
             for task in self._tasks:
                 task.cancel()
                 # Now we should await task to execute it's cancellation.
