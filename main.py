@@ -269,6 +269,7 @@ class PubSubLogging:
                 self.should_resubscribe = False
                 # Close the connection and let the code reconnect automatically
                 await self.connection.close()
+                [task.cancel() for task in self._tasks]
 
             elif metadata["message_type"] == "notification":
                 self.logging.debug(json.dumps(json_message, indent=4))
