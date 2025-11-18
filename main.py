@@ -47,12 +47,12 @@ class PubSubLogging:
         self._tasks: list[asyncio.Task] = []
         
         self.connection_url: str = DEFAULT_CONNECTION_URL
-        self.last_message_time: int = 0
+        self.last_message_time: float = 0
         self.should_resubscribe: bool = True
-        self.current_session_id: str = None
-        self.current_user_id: str = None
-        self.client_id: str = None
-        self.authorisation: str = None
+        self.current_session_id: str
+        self.current_user_id: str
+        self.client_id: str
+        self.authorisation: str
 
         # Read twitch authorization data
 
@@ -221,7 +221,12 @@ class PubSubLogging:
             try:
                 message = await connection.recv()
                 self.last_message_time = time()
-                await self.messagehandler(message)
+                if type(message) == str:
+                    await self.messagehandler(message)
+                elif type(message) == bytes:
+                    await self.messagehandler(message.decode('utf-8'))
+                else:
+                    self.logging.error(f"Received invalid type {type(message)} from websocket")
             except websockets.exceptions.ConnectionClosed:
                 self.logging.warning("Connection with server closed")
                 [task.cancel() for task in self._tasks if task is not asyncio.tasks.current_task()]
