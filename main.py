@@ -306,7 +306,10 @@ class PubSubLogging:
                 # Remove null values to save space
                 exclude_these_keys = ['broadcaster_user_id', 'broadcaster_user_login', 'broadcaster_user_name', 'user_name', 'moderator_user_name']
                 minimised = {k: v for k, v in json_message["payload"]["event"].items() if v is not None and k != exclude_these_keys}
-                del minimised["message"]["fragments"]
+                try:
+                    del minimised["message"]["fragments"]
+                except KeyError:
+                    self.logging.warning("Error removing message fragments from error payload")
                 embed = disnake.Embed(
                     title=f"Safety Embed",
                     description=f"If you see this something went wrong with the data from Twitch, or how it is being handled.",

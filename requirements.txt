@@ -3,3 +3,4 @@ asyncio
 disnake
 aiohttp
 requests
+humanize

@@ -7,6 +7,7 @@ import disnake
 from message import Message
 from modactions import ModAction
 from streamer import Streamer
+from humanize import precisedelta
 
 
 class Colours:
@@ -220,16 +221,18 @@ class Parser:
             else:
                 embed.add_field(
                     name="Flag Reason", value=f"`{event[mod_action.name]['reason']}`")
-                
-        def round_seconds(obj: timedelta) -> int:
-            if obj.microseconds >= 500_000:
-                obj += timedelta(seconds=1)
-                return obj.seconds
             
-        duration = round_seconds(datetime.fromisoformat(event[mod_action.name]["expires_at"]) - datetime.fromisoformat(metadata["message_timestamp"]))
+        delta = datetime.fromisoformat(event[mod_action.name]["expires_at"]) - datetime.fromisoformat(metadata["message_timestamp"])
+        duration = round(delta.total_seconds())
+        humanized_duration = precisedelta(delta, format="%0.0f")
+
+        if humanized_duration != f"{duration} second{'' if duration == 1 else 's'}":
+            seconds_display = f" ({duration} second{'' if duration == 1 else 's'})"
+        else:
+            seconds_display = ""
 
         embed.add_field(
-            name="Duration", value=f"{duration} second{'' if duration == 1 else 's'}")        
+            name="Duration", value=f"{humanized_duration}{seconds_display}")
 
         #embed.add_field(name="\u200b", value="\u200b")
         return embed
