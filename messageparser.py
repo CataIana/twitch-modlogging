@@ -414,7 +414,7 @@ class Parser:
         elif event["blocked_term"] != None:
             terms_list = set([event["message"]["text"][term["boundary"]["start_pos"]:term["boundary"]["end_pos"]+1] for term in event["blocked_term"]["terms_found"]])
             embed.add_field(
-                name=f"Relevant Blocked Term{'s' if len(terms_list) != 1 else ''}", value=f"{', '.join(f'`{term}`' for term in terms_list)}", inline=True)
+                name=f"Relevant Blocked Term{'s' if len(terms_list) != 1 else ''}", value=f"{'  '.join(f'`{term}`' for term in terms_list)}", inline=True)
 
         text_fragments = []
         for fragment in event["message"]["fragments"]:
@@ -422,7 +422,7 @@ class Parser:
                 if fragment.get("text", None) is not None:
                     text_fragments.append(fragment.get("text", None))
 
-        embed.add_field(name="Text fragments", value=f"""{', '.join(f"`{f.strip(' ')}`" for f in text_fragments)}""")
+        embed.add_field(name="Text fragments", value=f"""{'  '.join(f"`{f.strip(' ')}`" for f in text_fragments)}""")
         
         if event.get("status") == "allowed":
             if "automod_allowed_message" not in streamer.action_whitelist and streamer.action_whitelist != []:
