@@ -7,6 +7,7 @@ import disnake
 from message import Message
 from modactions import ModAction
 from streamer import Streamer
+from typing import Tuple
 from humanize import precisedelta
 
 
@@ -95,6 +96,7 @@ class Parser:
                 embed = r
         except AttributeError:
             embed.add_field(name="UNKNOWN ACTION", value=f"`{mod_action_str}`", inline=False)
+            embed.title = "Unknown Mod Action"
 
         if moderator in self.ignored_mods:
             ignore_message = True
@@ -107,17 +109,17 @@ class Parser:
         d = embed.to_dict()
         embed_text = "\n"
         if d.get("title", None) is not None:
-            embed_text += f"**{d['title']}**"
-        for field in d["fields"]:
+            embed_text += f"**{d.get('title', '')}**"
+        for field in d.get("fields", []):
             if field["name"] == "Channel":
                 embed_text += f" **||** **Channel:** {field['value']}"
             elif field["name"] == "Moderator":
                 embed_text += f" **||** **Moderator:** {field['value']}"
         if d.get("description", None) is not None:
-            embed_text += f" **||** {d['description']}\n"
+            embed_text += f" **||** {d.get('description', '')}\n"
         else:
             embed_text += "\n"
-        embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d['fields'] if i["name"] != "Moderator" and i["name"] != "Channel"])
+        embed_text += '\n'.join([f"{i['name']}: {i['value']}" for i in d.get('fields', []) if i["name"] != "Moderator" and i["name"] != "Channel"])
 
         self.logging.info(f"{moderator} used {mod_action.value} in #{streamer.username}")
 
@@ -282,13 +284,15 @@ class Parser:
 
     def vip(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, event, mod_action, embed)
-        embed.title = embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
+        if embed.title is not None:
+            embed.title = embed.title.replace('Vip', 'VIP') #Capitalize VIP for the looks
         embed.colour = self.colour.green
         return embed
 
     def unvip(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, event, mod_action, embed)
-        embed.title = embed.title.replace('Unvip', 'UnVIP')
+        if embed.title is not None:
+            embed.title = embed.title.replace('Unvip', 'UnVIP')
         return embed
     
     def warn(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
@@ -339,6 +343,7 @@ class Parser:
             if obj.microseconds >= 500_000:
                 obj += timedelta(seconds=1)
                 return obj.seconds
+            return obj.seconds
             
         duration = round_seconds(datetime.fromisoformat(event[mod_action.name]["expires_at"]) - datetime.fromisoformat(metadata["message_timestamp"]))
 
@@ -397,7 +402,7 @@ class Parser:
     def remove_blocked_term(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         return self.remove_permitted_term(streamer, event, metadata, mod_action, embed)
 
-    def automod_caught_message(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
+    def automod_caught_message(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> Tuple[bool, disnake.Embed]:
         ignore_message = False
         user = event["user_login"]
         user_escaped = user.replace('_', r'\_')
@@ -438,8 +443,8 @@ class Parser:
             embed.colour = self.colour.yellow
         return ignore_message, embed
     
-    def automod_allowed_message(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
+    def automod_allowed_message(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> Tuple[bool, disnake.Embed]:
         return self.automod_caught_message(streamer, event, metadata, mod_action, embed)
 
-    def automod_denied_message(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
+    def automod_denied_message(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> Tuple[bool, disnake.Embed]:
         return self.automod_caught_message(streamer, event, metadata, mod_action, embed)

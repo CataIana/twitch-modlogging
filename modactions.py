@@ -57,5 +57,7 @@ class ModAction(Enum):
     shared_chat_untimeout = "shared_chat_untimeout"
     shared_chat_delete = "shared_chat_delete"
 
+    unknown = "unknown"
+
     def __int__(self):
         return self.value
