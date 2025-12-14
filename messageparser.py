@@ -217,12 +217,8 @@ class Parser:
             embed.add_field(
                 name="Flag Reason", value=f"`None Provided`")
         else:
-            if "`" in event[mod_action.name]["reason"]:
-                embed.add_field(
-                    name="Flag Reason", value=f"```{event[mod_action.name]['reason']}```")
-            else:
-                embed.add_field(
-                    name="Flag Reason", value=f"`{event[mod_action.name]['reason']}`")
+            embed.add_field(
+                name="Flag Reason", value=f"``{event[mod_action.name]['reason'].replace('`', '​`​')}``")
             
         delta = datetime.fromisoformat(event[mod_action.name]["expires_at"]) - datetime.fromisoformat(metadata["message_timestamp"])
         duration = round(delta.total_seconds())
@@ -248,12 +244,8 @@ class Parser:
             embed.add_field(
                 name="Flag Reason", value=f"`None Provided`")
         else:
-            if "`" in event[mod_action.name]["reason"]:
-                embed.add_field(
-                    name="Flag Reason", value=f"```{event[mod_action.name]['reason']}```")
-            else:
-                embed.add_field(
-                    name="Flag Reason", value=f"`{event[mod_action.name]['reason']}`")
+            embed.add_field(
+                name="Flag Reason", value=f"``{event[mod_action.name]['reason'].replace('`', '​`​')}``")
         return embed
 
     def unban(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
@@ -262,12 +254,8 @@ class Parser:
 
     def delete(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, event, mod_action, embed)
-        if "`" in event[mod_action.name]['message_body']:
-            embed.add_field(
-                name="Message", value=f"```{event[mod_action.name]['message_body']}```")
-        else:
-            embed.add_field(
-                name="Message", value=f"`{event[mod_action.name]['message_body']}`")
+        embed.add_field(
+            name="Message", value=f"``{event[mod_action.name]['message_body'].replace('`', '​`​')}``")
 
         return embed
 
@@ -314,12 +302,8 @@ class Parser:
             embed.add_field(
                 name="Flag Reason", value=f"`None Provided`")
         else:
-            if "`" in event[mod_action.name]["reason"]:
-                embed.add_field(
-                    name="Flag Reason", value=f"```{event[mod_action.name]['reason']}```")
-            else:
-                embed.add_field(
-                    name="Flag Reason", value=f"`{event[mod_action.name]['reason']}`")
+            embed.add_field(
+                name="Flag Reason", value=f"``{event[mod_action.name]['reason'].replace('`', '`​')}``")
         return embed
     
     def shared_chat_unban(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
@@ -332,12 +316,8 @@ class Parser:
             embed.add_field(
                 name="Flag Reason", value=f"`None Provided`")
         else:
-            if "`" in event[mod_action.name]["reason"]:
-                embed.add_field(
-                    name="Flag Reason", value=f"```{event[mod_action.name]['reason']}```")
-            else:
-                embed.add_field(
-                    name="Flag Reason", value=f"`{event[mod_action.name]['reason']}`")
+            embed.add_field(
+                name="Flag Reason", value=f"```{event[mod_action.name]['reason'].replace('`', '​`​')}```")
                 
         def round_seconds(obj: timedelta) -> int:
             if obj.microseconds >= 500_000:
@@ -357,12 +337,8 @@ class Parser:
     
     def shared_chat_delete(self, streamer: Streamer, event: dict, metadata: dict, mod_action: ModAction, embed: disnake.Embed) -> disnake.Embed:
         embed = self.set_user_attrs(streamer, event, mod_action, embed)
-        if "`" in event[mod_action.name]['message_body']:
-            embed.add_field(
-                name="Message", value=f"```{event[mod_action.name]['message_body']}```")
-        else:
-            embed.add_field(
-                name="Message", value=f"`{event[mod_action.name]['message_body']}`")
+        embed.add_field(
+            name="Message", value=f"```{event[mod_action.name]['message_body'].replace('`', '​`​')}```")
 
         return embed
 
@@ -371,12 +347,8 @@ class Parser:
         embed.colour = self.colour.green
         embed.add_field(
             name="Added by", value=f"{event['moderator_user_login']}")
-        if "`" in event['automod_terms']["terms"][0]:
-            embed.add_field(
-                name="Term", value=f"```{event['automod_terms']['terms'][0]}```", inline=False)
-        else:
-            embed.add_field(
-                name="Term", value=f"`{event['automod_terms']['terms'][0]}`", inline=False)
+        embed.add_field(
+            name="Term", value=f"``{event['automod_terms']['terms'][0].replace('`', '​`​')}``", inline=False)
         embed.add_field(
             name="From Automod", value=f"`{'Yes' if event['automod_terms']['from_automod'] else 'No'}`")
         
@@ -390,12 +362,8 @@ class Parser:
         embed = self.set_terms_attrs(mod_action, embed)
         embed.add_field(
             name="Added by", value=f"{event['moderator_user_login']}")
-        if "`" in event['automod_terms']["terms"][0]:
-            embed.add_field(
-                name="Term", value=f"```{event['automod_terms']['terms'][0]}```", inline=False)
-        else:
-            embed.add_field(
-                name="Term", value=f"`{event['automod_terms']['terms'][0]}`", inline=False)
+        embed.add_field(
+            name="Term", value=f"``{event['automod_terms']['terms'][0].replace('`', '​`​')}``", inline=False)
         embed.remove_field(1)
         return embed
 
@@ -419,7 +387,7 @@ class Parser:
         elif event["blocked_term"] != None:
             terms_list = set([event["message"]["text"][term["boundary"]["start_pos"]:term["boundary"]["end_pos"]+1] for term in event["blocked_term"]["terms_found"]])
             embed.add_field(
-                name=f"Relevant Blocked Term{'s' if len(terms_list) != 1 else ''}", value=f"{'  '.join(f'`{term}`' for term in terms_list)}", inline=True)
+                name=f"Relevant Blocked Term{'s' if len(terms_list) != 1 else ''}", value=f"{'  '.join(f'``{term.replace('`', '​`​')}``' for term in terms_list)}", inline=True)
 
         text_fragments = []
         for fragment in event["message"]["fragments"]:
@@ -427,7 +395,7 @@ class Parser:
                 if fragment.get("text", None) is not None:
                     text_fragments.append(fragment.get("text", None))
 
-        embed.add_field(name="Text fragments", value=f"""{'  '.join(f"`{f.strip(' ')}`" for f in text_fragments)}""")
+        embed.add_field(name="Text fragments", value=f"""{'  '.join(f"``{f.strip(' ').replace('`', '​`​')}``" for f in text_fragments)}""")
         
         if event.get("status") == "allowed":
             if "automod_allowed_message" not in streamer.action_whitelist and streamer.action_whitelist != []:
